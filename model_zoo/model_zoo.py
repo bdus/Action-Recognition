@@ -8,11 +8,14 @@ Created on Fri Nov  1 22:10:42 2019
 see : https://github.com/bdus/hyperspectral/blob/master/indian_pines/indian_semi/symbols/symbols.py
 
 """
+from .simple import *
+from .MSEloss_vgg import *
 
 __all__ = ['get_model', 'get_model_list']
 
 _models = {
-    #'simple':simple,
+    'simple':simple,
+    'mseloss_vgg16':mseloss_vgg16
     }
 
 def get_model(name, **kwargs):

@@ -1,0 +1,7 @@
+#1. vgg16 no TSN
+python3 train_recognizer.py --model vgg16_ucf101 --num-classes 101 --num-gpus 2 --lr-mode step --lr 0.001 --lr-decay 0.1 --lr-decay-epoch 30,60,80 --num-epochs 80
+# log : train_ucf_vgg16_noTSN.log
+
+#2. vgg16 use TSN seg=3
+python3 train_recognizer.py --model vgg16_ucf101 --num-classes 101 --num-gpus 2 --batch-size 12 --num-segments 3 --use-tsn --lr-mode step --lr 0.001 --lr-decay 0.1 --lr-decay-epoch 30,60,80 --num-epochs 80
+# log : train_ucf_vgg16_TSN-3.log

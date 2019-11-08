@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Fri Nov  1 22:14:03 2019
+Created on Thu Nov  7 11:40:38 2019
 
 @author: bdus
+
+VGG
+
 """
+
+
 import os
 import mxnet as mx
 from mxnet import init
@@ -13,11 +18,11 @@ from mxnet.gluon.nn import HybridBlock
 from gluoncv.model_zoo import vgg16
 
 
-__all__ = ['Simple','simple']
+__all__ = ['MSElossVGG16','mseloss_vgg16']
 
-class Simple(HybridBlock):
+class MSElossVGG16(HybridBlock):
     def __init__(self,nclass,num_segments, num_crop=1,input_channel=3,dropout_ratio=0.9, init_std=0.001,feat_dim=4096,**kwargs):
-        super(Simple, self).__init__(**kwargs)
+        super(MSElossVGG16, self).__init__(**kwargs)
         self.nclass = nclass
         self.num_segments = num_segments
         self.feat_dim = feat_dim
@@ -33,7 +38,12 @@ class Simple(HybridBlock):
             # change the input channel of first layer convnet                             
             self.feature = nn.HybridSequential()
             with pretrained_model.name_scope():
-                self.feature.add(nn.Conv2D(in_channels=input_channel,channels=64,kernel_size=3,strides=(1,1),padding=(1,1)))
+                self.feature.add(nn.Conv2D(in_channels=input_channel,channels=64,
+                                           kernel_size=3,strides=(1,1),padding=(1,1),
+                                           weight_initializer=Xavier(rnd_type='gaussian',
+                                                                   factor_type='out',
+                                                                   magnitude=2),
+                                        bias_initializer='zeros'))
             self.feature[0].initialize()
             for layer in vgg16_feature[1:]:
                 self.feature.add(layer)
@@ -50,9 +60,10 @@ class Simple(HybridBlock):
         x = self.feature(x)
         
         x = F.reshape(x, shape=(-1, self.num_segments * self.num_crop, self.feat_dim))
-        x = F.mean(x, axis=1)
+        #x = F.mean(x, axis=1)        
+        x = x.split(axis=1,num_outputs=self.num_segments)
         
-        x = self.output(x)
+        x = [self.output(i) for i in x]
         return x
 
     def __getitem__(self, key):
@@ -61,12 +72,12 @@ class Simple(HybridBlock):
     def __len__(self):
         return len(self.net)
 
-def simple(**kwargs):
-    return get_simple(**kwargs)
+def mseloss_vgg16(**kwargs):
+    return get_mseloss(**kwargs)
 
-def get_simple(pretrained=False,
+def get_mseloss(pretrained=False,
                root='para', **kwargs):
-    net = Simple(**kwargs)
+    net = MSElossVGG16(**kwargs)
     if pretrained:
         #https://github.com/dmlc/gluon-cv/blob/11eb654e938b32fd746ec5f72e09a44f35e99c7a/gluoncv/model_zoo/vgg.py#L116
 #        filepath = os.path.join(root,'simple%d.params'%(index))
