@@ -71,12 +71,25 @@ batch_size = per_device_batch_size * num_gpus
 #                setting='/home/hp/.mxnet/datasets/ucf101/ucfTrainTestlist/ucf101_train_split_2_rawframes.txt',
 #                name_pattern='image_%05d.jpg')
 
-train_dataset = ucf101.classification.UCF101(train=True, num_segments=3, transform=transform_train,root='/home/hp/lixiaoyu/dataset/flow')
+#train_dataset = ucf101.classification.UCF101(train=True, num_segments=3, transform=transform_train,root='/home/hp/lixiaoyu/dataset/flow')
+#val_dataset = ucf101.classification.UCF101(train=True, num_segments=3, transform=transform_train,root='/home/hp/lixiaoyu/dataset/flow')
+train_dataset = ucf101.classification.UCF101(train=True, num_segments=3, transform=transform_train,
+                                             root='/home/hp/lixiaoyu/dataset/flow',
+                                             setting='/home/hp/lixiaoyu/dataset/data/ucf101_rgb_flow/ucf101_rgb_train_split_1.txt',
+                                             name_pattern='img_%05d.jpg'
+                                             )
+
+val_dataset = ucf101.classification.UCF101(train=False, num_segments=3, transform=transform_train,
+                                             root='/home/hp/lixiaoyu/dataset/flow',
+                                             setting='/home/hp/lixiaoyu/dataset/data/ucf101_rgb_flow/ucf101_rgb_val_split_1.txt',
+                                             name_pattern='img_%05d.jpg'
+                                             )
 
 train_data = gluon.data.DataLoader(train_dataset, batch_size=batch_size,
                                    shuffle=True, num_workers=num_workers)
 print('Load %d training samples.' % len(train_dataset))
-
+val_data = gluon.data.DataLoader(val_dataset, batch_size=batch_size,
+                                   shuffle=False, num_workers=num_workers)
 
 # Learning rate decay factor
 lr_decay = 0.1
@@ -96,18 +109,17 @@ loss_mse = gluon.loss.L2Loss()
 
 def myloss(yhat,y):    
     # yhat is the output of net, is a list
-    #a,b,c = yhat#.split(axis=0,num_outputs=3)
-    ans = 0.0
-    for i in yhat:
-        ans += loss_fn(i,y)
-    while len(yhat) > 0:
-        a = yhat.pop()
-        for i in yhat:
-            ans += loss_mse(a,i)
+#    a,b,c = yhat#.split(axis=0,num_outputs=3)
 #    print('a.shape',a.shape)
 #    print('y.shape',y.shape)
 #    ans = loss_fn(a,y) + loss_fn(b,y) + loss_fn(c,y)  \
-#        + loss_mse(a,b)  + loss_mse(a,c)  + loss_mse(b,c)    
+#        + loss_mse(a,b)  + loss_mse(a,c)  + loss_mse(b,c)
+    ans = 0
+    for i in yhat:
+        ans = ans + loss_fn(i,y)    
+    for i in range(len(yhat)-1):
+        for k in range(i+1,len(yhat)):
+            ans = ans + loss_mse(yhat[i],yhat[k])
     return ans
 
 def mean_loss(yhat,y):
@@ -122,17 +134,56 @@ def mean_loss(yhat,y):
 def mymean(output):
     ans = list()
     for item in output:
-        a,b,c = item#.split(axis=0,num_outputs=3)
-        ans.append( nd.add_n(a,b,c)/3 )
+        sum_seg = 0        
+        for i in item:
+            sum_seg = sum_seg + i
+        ans.append( sum_seg/len(item) )
     return ans
 
+def list_avg(yhat):
+    ans = 0
+    for i in yhat:
+        ans = ans + i
+    return ans / len(yhat)
+        
+
 train_metric = mx.metric.Accuracy()
-train_history = TrainingHistory(['training-acc'])
+train_history = TrainingHistory(['training-acc','val-top1-acc','val-top5-acc'])
 
 
 epochs = 80
 lr_decay_count = 0
 
+acc_top1 = mx.metric.Accuracy()
+acc_top5 = mx.metric.TopKAccuracy(5)
+
+def test(ctx,val_data):
+    acc_top1.reset()
+    acc_top5.reset()
+    L = gluon.loss.SoftmaxCrossEntropyLoss()
+    num_test_iter = len(val_data)
+    val_loss_epoch = 0
+    for i, batch in enumerate(val_data):
+        data = split_and_load(batch[0], ctx_list=ctx, batch_axis=0)
+        label = split_and_load(batch[1], ctx_list=ctx, batch_axis=0)
+        val_outputs = []
+        for _, X in enumerate(data):
+            X = X.reshape((-1,) + X.shape[2:])
+            pred = net(X)
+            val_outputs.append(pred)
+            
+        loss = [L(list_avg(yhat), y) for yhat, y in zip(val_outputs, label)]
+        
+        acc_top1.update(label, mymean(val_outputs))
+        acc_top5.update(label, mymean(val_outputs))
+        
+        val_loss_epoch += sum([l.mean().asscalar() for l in loss]) / len(loss)
+    
+    _, top1 = acc_top1.get()
+    _, top5 = acc_top5.get()
+    val_loss = val_loss_epoch / num_test_iter
+    
+    return (top1, top5, val_loss)
 
 for epoch in range(epochs):
     tic = time.time()
@@ -175,11 +226,16 @@ for epoch in range(epochs):
         train_metric.update(label, mymean(output)) 
 
     name, acc = train_metric.get()
+    
+    # test
+    acc_top1_val, acc_top5_val, loss_val = test(ctx, val_data)
 
     # Update history and print metrics
-    train_history.update([acc])
+    train_history.update([acc,acc_top1_val,acc_top5_val])
     print('[Epoch %d] train=%f loss=%f time: %f' %
         (epoch, acc, train_loss / (i+1), time.time()-tic))
-
+    print('[Epoch %d] val top1 =%f top5=%f val loss=%f' %
+        (epoch, acc_top1_val, acc_top5_val, loss_val ))
+    
 # We can plot the metric scores with:
 train_history.plot()

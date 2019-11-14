@@ -28,9 +28,9 @@ from gluoncv.utils import makedirs, LRSequential, LRScheduler, split_and_load, T
 from model_zoo import get_model as myget
 
 # number of GPUs to use
-num_gpus = 1
-#ctx = [mx.gpu(i) for i in range(num_gpus)]
-ctx = [mx.gpu(0)]
+num_gpus = 2
+ctx = [mx.gpu(i) for i in range(num_gpus)]
+#ctx = [mx.gpu(0)]
 
 # Get the model 
 #net = get_model(name='vgg16_ucf101', nclass=101, num_segments=3)
@@ -70,15 +70,15 @@ batch_size = per_device_batch_size * num_gpus
 #                name_pattern='image_%05d.jpg')
 
 train_dataset = ucf101.classification.UCF101(train=True, num_segments=3, transform=transform_train,
-                                             root='/home/hp/lixiaoyu/dataset/flow',
+                                             root='/media/hp/dataset/UCF101/BGSDecom/FrameDifference/fgs',#'/home/hp/lixiaoyu/dataset/flow',
                                              setting='/home/hp/lixiaoyu/dataset/data/ucf101_rgb_flow/ucf101_rgb_train_split_1.txt',
-                                             name_pattern='img_%05d.jpg'
+                                             name_pattern='image_%05d.jpg'#'img_%05d.jpg'
                                              )
 
 val_dataset = ucf101.classification.UCF101(train=False, num_segments=3, transform=transform_train,
-                                             root='/home/hp/lixiaoyu/dataset/flow',
+                                             root='/media/hp/dataset/UCF101/BGSDecom/FrameDifference/fgs',#'/home/hp/lixiaoyu/dataset/flow',
                                              setting='/home/hp/lixiaoyu/dataset/data/ucf101_rgb_flow/ucf101_rgb_val_split_1.txt',
-                                             name_pattern='img_%05d.jpg'
+                                             name_pattern='image_%05d.jpg'#'img_%05d.jpg'
                                              )
 
 train_data = gluon.data.DataLoader(train_dataset, batch_size=batch_size,
@@ -105,10 +105,9 @@ loss_fn = gluon.loss.SoftmaxCrossEntropyLoss()
 
 train_metric = mx.metric.Accuracy()
 
-train_history = TrainingHistory(['training-acc'])
-val_history = TrainingHistory(['val-top1-top5-acc'])
+train_history = TrainingHistory(['training-acc','val-top1-acc','val-top5-acc'])
 
-epochs = 2
+epochs = 80
 lr_decay_count = 0
 
 acc_top1 = mx.metric.Accuracy()
@@ -185,13 +184,11 @@ for epoch in range(epochs):
     acc_top1_val, acc_top5_val, loss_val = test(ctx, val_data)
 
     # Update history and print metrics
-    train_history.update([acc])
-    val_history.update([acc_top1_val])
+    train_history.update([acc,acc_top1_val,acc_top5_val])
     print('[Epoch %d] train=%f loss=%f time: %f' %
         (epoch, acc, train_loss / (i+1), time.time()-tic))
     print('[Epoch %d] val top1 =%f top5=%f val loss=%f' %
-        (epoch, acc_top1, acc_top5_val, val_loss / (i+1)))
+        (epoch, acc_top1_val, acc_top5_val, loss_val ))
 
 # We can plot the metric scores with:
 train_history.plot()
-val_history.plot()
