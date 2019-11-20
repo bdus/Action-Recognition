@@ -10,12 +10,15 @@ see : https://github.com/bdus/hyperspectral/blob/master/indian_pines/indian_semi
 """
 from .simple import *
 from .MSEloss_vgg import *
+from .test_1E4 import *
 
 __all__ = ['get_model', 'get_model_list']
 
 _models = {
     'simple':simple,
-    'mseloss_vgg16':mseloss_vgg16
+    'mseloss_vgg16':mseloss_vgg16,
+    'dualnet_max':dualnet_max,
+    'dualnet_avg':dualnet_avg
     }
 
 def get_model(name, **kwargs):

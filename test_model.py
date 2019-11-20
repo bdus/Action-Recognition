@@ -28,9 +28,9 @@ from gluoncv.utils import makedirs, LRSequential, LRScheduler, split_and_load, T
 from model_zoo import get_model as myget
 
 # number of GPUs to use
-num_gpus = 2
-ctx = [mx.gpu(i) for i in range(num_gpus)]
-#ctx = [mx.gpu(0)]
+num_gpus = 1
+#ctx = [mx.gpu(i) for i in range(num_gpus)]
+ctx = [mx.gpu(1)]
 
 # Get the model 
 #net = get_model(name='vgg16_ucf101', nclass=101, num_segments=3)
@@ -53,7 +53,7 @@ transform_train = transforms.Compose([
 ])
 
 # Batch Size for Each GPU
-per_device_batch_size = 10
+per_device_batch_size = 12
 # Number of data loader workers
 num_workers = 2
 # Calculate effective total batch size
@@ -70,15 +70,15 @@ batch_size = per_device_batch_size * num_gpus
 #                name_pattern='image_%05d.jpg')
 
 train_dataset = ucf101.classification.UCF101(train=True, num_segments=3, transform=transform_train,
-                                             root='/media/hp/dataset/UCF101/BGSDecom/FrameDifference/fgs',#'/home/hp/lixiaoyu/dataset/flow',
+                                             root='/media/hp/data/BGSDecom/PixelBasedAdaptiveSegmenter/fgs',#'/home/hp/lixiaoyu/dataset/flow',
                                              setting='/home/hp/lixiaoyu/dataset/data/ucf101_rgb_flow/ucf101_rgb_train_split_1.txt',
-                                             name_pattern='image_%05d.jpg'#'img_%05d.jpg'
+                                             name_pattern='img_%05d.jpg'#'img_%05d.jpg'
                                              )
 
 val_dataset = ucf101.classification.UCF101(train=False, num_segments=3, transform=transform_train,
-                                             root='/media/hp/dataset/UCF101/BGSDecom/FrameDifference/fgs',#'/home/hp/lixiaoyu/dataset/flow',
+                                             root='/media/hp/data/BGSDecom/PixelBasedAdaptiveSegmenter/fgs',#'/home/hp/lixiaoyu/dataset/flow',
                                              setting='/home/hp/lixiaoyu/dataset/data/ucf101_rgb_flow/ucf101_rgb_val_split_1.txt',
-                                             name_pattern='image_%05d.jpg'#'img_%05d.jpg'
+                                             name_pattern='img_%05d.jpg',#'img_%05d.jpg'                                             
                                              )
 
 train_data = gluon.data.DataLoader(train_dataset, batch_size=batch_size,
