@@ -24,7 +24,7 @@ from mxnet.gluon.nn import HybridBlock
 from gluoncv.model_zoo import vgg16
 
 
-__all__ = ['DualNet','dualnet_avg','dualnet_max']
+__all__ = ['DualNet','dualnet_avg','dualnet_max','dualnet_outmax','dualnet_outavg']
 
 class DualNet(HybridBlock):
     def __init__(self,nclass,num_segments, fusion_method='avg',num_crop=1,input_channel=3,dropout_ratio=0.9, init_std=0.001,feat_dim=4096,**kwargs):
@@ -61,10 +61,17 @@ class DualNet(HybridBlock):
         self.feature_bgs.apply(update_dropout_ratio)
         self.feature_fgs.apply(update_dropout_ratio)
         
-        self.output = nn.Dense(units=self.nclass, in_units=self.feat_dim, weight_initializer=init.Normal(sigma=self.init_std))
-#        self.output_fgs = nn.Dense(units=self.nclass, in_units=self.feat_dim, weight_initializer=init.Normal(sigma=self.init_std))
-        self.output.initialize()
-#        self.output_fgs.initialize()
+        if self.fusion_method == 'avg' or self.fusion_method == 'max':
+            self.output = nn.Dense(units=self.nclass, in_units=self.feat_dim, weight_initializer=init.Normal(sigma=self.init_std))            
+            self.output.initialize()
+        elif self.fusion_method == 'out_avg' or self.fusion_method == 'out_max':
+            self.output_fgs = nn.Dense(units=self.nclass, in_units=self.feat_dim, weight_initializer=init.Normal(sigma=self.init_std))
+            self.output_bgs = nn.Dense(units=self.nclass, in_units=self.feat_dim, weight_initializer=init.Normal(sigma=self.init_std))
+            self.output_fgs.initialize()
+            self.output_bgs.initialize()
+        else:
+            raise ValueError("not support fusion method")
+
         
     def hybrid_forward(self, F, x_bgs, x_fgs):            
         x_bgs = self.feature_bgs(x_bgs)
@@ -73,16 +80,30 @@ class DualNet(HybridBlock):
         x_bgs = F.reshape(x_bgs, shape=(-1, self.num_segments * self.num_crop, self.feat_dim))
         x_fgs = F.reshape(x_fgs, shape=(-1, self.num_segments * self.num_crop, self.feat_dim))
         
-        x = F.concat(x_bgs,x_fgs,dim=1)
-        
-        if self.fusion_method == 'avg':
-            x = F.mean(x, axis=1)
-        elif self.fusion_method == 'max':
-            x = F.max(x,axis=1)
-        else:
-            raise ValueError('fusion_method not supported')
-        
-        x = self.output(x)
+        if self.fusion_method == 'avg' or self.fusion_method == 'max':
+            x = F.concat(x_bgs,x_fgs,dim=1)        
+            if self.fusion_method == 'avg':
+                x = F.mean(x, axis=1)
+            elif self.fusion_method == 'max':
+                x = F.max(x,axis=1)
+            else:
+                raise ValueError('fusion_method not supported')
+            x = self.output(x)
+            
+        elif self.fusion_method == 'out_avg' or self.fusion_method == 'out_max':
+            if self.fusion_method == 'out_avg':
+                x_bgs = F.mean(x_bgs, axis=1)
+                x_fgs = F.mean(x_fgs, axis=1)                
+            elif self.fusion_method == 'out_max':
+                x_bgs = F.max(x_bgs,axis=1)
+                x_fgs = F.max(x_fgs,axis=1)
+            else:
+                raise ValueError('fusion_method not supported')
+            x_bgs = self.output_bgs(x_bgs)
+            x_fgs = self.output_fgs(x_fgs)
+#            x = F.concat(x_bgs,x_fgs,dim=1)
+#            x = F.mean(x,axis=1)
+            x = (x_bgs+x_fgs)/2
         return x
 
     def __getitem__(self, key):
@@ -96,6 +117,12 @@ def dualnet_avg(**kwargs):
 
 def dualnet_max(**kwargs):
     return get_dualnet(fusion_method='max',**kwargs)
+
+def dualnet_outavg(**kwargs):
+    return get_dualnet(fusion_method='out_avg',**kwargs)
+
+def dualnet_outmax(**kwargs):
+    return get_dualnet(fusion_method='out_max',**kwargs)
 
 def get_dualnet(fusion_method,pretrained=False,
                root='para', **kwargs):

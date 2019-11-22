@@ -38,7 +38,7 @@ ctx = [mx.gpu(1)]
 # Get the model 
 #net = get_model(name='vgg16_ucf101', nclass=101, num_segments=3)
 #net = myget(name='simple', nclass=101, num_segments=3)
-net = myget(name='dualnet_avg', nclass=101, num_segments=3)
+net = myget(name='dualnet_outmax', nclass=101, num_segments=3)
 
 net.collect_params().reset_ctx(ctx)
 #print(net)
@@ -57,7 +57,7 @@ transform_train = transforms.Compose([
 ])
 
 # Batch Size for Each GPU
-per_device_batch_size = 10
+per_device_batch_size = 8
 # Number of data loader workers
 num_workers = 2
 # Calculate effective total batch size

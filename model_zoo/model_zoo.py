@@ -18,7 +18,9 @@ _models = {
     'simple':simple,
     'mseloss_vgg16':mseloss_vgg16,
     'dualnet_max':dualnet_max,
-    'dualnet_avg':dualnet_avg
+    'dualnet_avg':dualnet_avg,
+    'dualnet_outmax':dualnet_outmax,
+    'dualnet_outavg':dualnet_outavg
     }
 
 def get_model(name, **kwargs):
