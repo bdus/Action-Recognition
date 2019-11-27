@@ -5,9 +5,9 @@ import numpy as np
 from mxnet import nd
 from mxnet.gluon.data import dataset
 
-__all__ = ['UCF101']
+__all__ = ['UCF101_Bgs']
 
-class UCF101(dataset.Dataset):
+class UCF101_Bgs(dataset.Dataset):
     """Load the UCF101 video action recognition dataset.
 
     Refer to :doc:`../build/examples_datasets/ucf101` for the description of
@@ -61,7 +61,8 @@ class UCF101(dataset.Dataset):
         A function that takes data and label and transforms them.
     """
     def __init__(self,
-                 root=os.path.expanduser('~/.mxnet/datasets/ucf101/rawframes'),
+                 root_bgs=os.path.expanduser('/media/hp/data/BGSDecom/FrameDifference/bgs'),
+                 root_fgs=os.path.expanduser('/media/hp/data/BGSDecom/FrameDifference/fgs'),
                  setting=os.path.expanduser('/home/hp/.mxnet/datasets/ucf101/ucfTrainTestlist/ucf101_train_split_2_rawframes.txt'),
                  train=True,
                  test_mode=False,
@@ -85,7 +86,8 @@ class UCF101(dataset.Dataset):
 
         from gluoncv.utils.filesystem import try_import_cv2, try_import_decord, try_import_mmcv
         self.cv2 = try_import_cv2()
-        self.root = root
+        self.root_bgs = root_bgs
+        self.root_fgs = root_fgs
         self.setting = setting
         self.train = train
         self.test_mode = test_mode
@@ -111,10 +113,10 @@ class UCF101(dataset.Dataset):
             else:
                 self.mmcv = try_import_mmcv()
 
-        self.classes, self.class_to_idx = self._find_classes(root)
-        self.clips = self._make_dataset(root, setting)
+#        self.classes, self.class_to_idx = self._find_classes(root)
+        self.clips = self._make_dataset(root_bgs, root_fgs, setting)
         if len(self.clips) == 0:
-            raise(RuntimeError("Found 0 video clips in subfolders of: " + root + "\n"
+            raise(RuntimeError("Found 0 video clips in subfolders of: " + root_bgs + "\n"
                                "Check your data directory (opt.data-dir)."))
 
         if name_pattern:
@@ -182,7 +184,7 @@ class UCF101(dataset.Dataset):
         class_to_idx = {classes[i]: i for i in range(len(classes))}
         return classes, class_to_idx
 
-    def _make_dataset(self, directory, setting):
+    def _make_dataset(self, root_bgs, root_fgs, setting):
         if not os.path.exists(setting):
             raise(RuntimeError("Setting file %s doesn't exist. Check opt.train-list and opt.val-list. " % (setting)))
         clips = []
@@ -193,8 +195,8 @@ class UCF101(dataset.Dataset):
                 # line format: video_path, video_duration, video_label
                 if len(line_info) < 3:
                     raise(RuntimeError('Video input format is not correct, missing one or more element. %s' % line))
-                clip_path_bgs = os.path.join(directory,'bgs', line_info[0])
-                clip_path_fgs = os.path.join(directory,'fgs', line_info[0])
+                clip_path_bgs = os.path.join(root_bgs, line_info[0])
+                clip_path_fgs = os.path.join(root_fgs, line_info[0])
                 duration = int(line_info[1])
                 target = int(line_info[2])
                 item = (clip_path_bgs, clip_path_fgs, duration, target)

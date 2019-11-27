@@ -34,7 +34,7 @@ ctx = [mx.gpu(1)]
 
 # Get the model 
 #net = get_model(name='vgg16_ucf101', nclass=101, num_segments=3)
-net = myget(name='simple', nclass=101, num_segments=3)
+net = myget(name='simple', nclass=101, num_segments=7,input_channel=15)
 
 net.collect_params().reset_ctx(ctx)
 #print(net)
@@ -53,9 +53,9 @@ transform_train = transforms.Compose([
 ])
 
 # Batch Size for Each GPU
-per_device_batch_size = 12
+per_device_batch_size = 10
 # Number of data loader workers
-num_workers = 2
+num_workers = 1
 # Calculate effective total batch size
 batch_size = per_device_batch_size * num_gpus
 
@@ -69,13 +69,13 @@ batch_size = per_device_batch_size * num_gpus
 #                setting='/home/hp/.mxnet/datasets/ucf101/ucfTrainTestlist/ucf101_train_split_2_rawframes.txt',
 #                name_pattern='image_%05d.jpg')
 
-train_dataset = ucf101.classification.UCF101(train=True, num_segments=3, transform=transform_train,
+train_dataset = ucf101.classification.UCF101(train=True, num_segments=7,new_length=5, transform=transform_train,
                                              root='/media/hp/data/BGSDecom/PixelBasedAdaptiveSegmenter/fgs',#'/home/hp/lixiaoyu/dataset/flow',
                                              setting='/home/hp/lixiaoyu/dataset/data/ucf101_rgb_flow/ucf101_rgb_train_split_1.txt',
                                              name_pattern='img_%05d.jpg'#'img_%05d.jpg'
                                              )
 
-val_dataset = ucf101.classification.UCF101(train=False, num_segments=3, transform=transform_train,
+val_dataset = ucf101.classification.UCF101(train=False, num_segments=7,new_length=5, transform=transform_train,
                                              root='/media/hp/data/BGSDecom/PixelBasedAdaptiveSegmenter/fgs',#'/home/hp/lixiaoyu/dataset/flow',
                                              setting='/home/hp/lixiaoyu/dataset/data/ucf101_rgb_flow/ucf101_rgb_val_split_1.txt',
                                              name_pattern='img_%05d.jpg',#'img_%05d.jpg'                                             
@@ -107,7 +107,7 @@ train_metric = mx.metric.Accuracy()
 
 train_history = TrainingHistory(['training-acc','val-top1-acc','val-top5-acc'])
 
-epochs = 80
+epochs = 2
 lr_decay_count = 0
 
 acc_top1 = mx.metric.Accuracy()
@@ -124,7 +124,9 @@ def test(ctx,val_data):
         label = split_and_load(batch[1], ctx_list=ctx, batch_axis=0)
         val_outputs = []
         for _, X in enumerate(data):
-            X = X.reshape((-1,) + X.shape[2:])
+#            X = X.reshape((-1,) + X.shape[2:])
+#            X = X.reshape((-1,15)+X.shape[-2:])
+            X = X.reshape((-3,-3,-2))
             pred = net(X)
             val_outputs.append(pred)
             
@@ -162,7 +164,9 @@ for epoch in range(epochs):
         with ag.record():
             output = []
             for _, X in enumerate(data):
-                X = X.reshape((-1,) + X.shape[2:])
+#                X = X.reshape((-1,) + X.shape[2:])
+#                X = X.reshape((-1,15)+X.shape[-2:])
+                X = X.reshape((-3,-3,-2))                
                 pred = net(X)
                 output.append(pred)
             loss = [loss_fn(yhat, y) for yhat, y in zip(output, label)]

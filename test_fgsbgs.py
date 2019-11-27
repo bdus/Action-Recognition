@@ -38,7 +38,7 @@ ctx = [mx.gpu(1)]
 # Get the model 
 #net = get_model(name='vgg16_ucf101', nclass=101, num_segments=3)
 #net = myget(name='simple', nclass=101, num_segments=3)
-net = myget(name='dualnet_outmax', nclass=101, num_segments=3)
+net = myget(name='dualnet_outavg', nclass=101, num_segments=3)
 
 net.collect_params().reset_ctx(ctx)
 #print(net)
@@ -74,14 +74,16 @@ batch_size = per_device_batch_size * num_gpus
 #                name_pattern='image_%05d.jpg')
 
 train_dataset = ucf101.classification.UCF101(train=True, num_segments=3, transform=transform_train,
-                                             root='/media/hp/data/BGSDecom/FrameDifference/',#'/home/hp/lixiaoyu/dataset/flow',
-                                             setting='/home/hp/lixiaoyu/dataset/data/ucf101_rgb_flow/ucf101_rgb_train_split_1.txt',
+                                             root_bgs='/media/hp/data/BGSDecom/FrameDifference/bgs',
+                                             root_fgs='/media/hp/data/BGSDecom/FrameDifference/fgs',
+                                             setting='/home/hp/lixiaoyu/dataset/data/ucf101_rgb_flow/ucf101_rgb_train_split_2.txt',
                                              name_pattern='img_%05d.jpg'#'img_%05d.jpg'
                                              )
 
 val_dataset = ucf101.classification.UCF101(train=False, num_segments=3, transform=transform_train,
-                                             root='/media/hp/data/BGSDecom/FrameDifference/',#'/home/hp/lixiaoyu/dataset/flow',
-                                             setting='/home/hp/lixiaoyu/dataset/data/ucf101_rgb_flow/ucf101_rgb_val_split_1.txt',
+                                             root_bgs='/media/hp/data/BGSDecom/FrameDifference/bgs',#'/home/hp/lixiaoyu/dataset/flow',
+                                             root_fgs='/media/hp/data/BGSDecom/FrameDifference/fgs',
+                                             setting='/home/hp/lixiaoyu/dataset/data/ucf101_rgb_flow/ucf101_rgb_val_split_2.txt',
                                              name_pattern='img_%05d.jpg'#'img_%05d.jpg'
                                              )
 
