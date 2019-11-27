@@ -11,6 +11,7 @@ see : https://github.com/bdus/hyperspectral/blob/master/indian_pines/indian_semi
 from .simple import *
 from .MSEloss_vgg import *
 from .test_1E4 import *
+from .actionrec_inceptionv3 import *
 
 __all__ = ['get_model', 'get_model_list']
 
@@ -20,7 +21,9 @@ _models = {
     'dualnet_max':dualnet_max,
     'dualnet_avg':dualnet_avg,
     'dualnet_outmax':dualnet_outmax,
-    'dualnet_outavg':dualnet_outavg
+    'dualnet_outavg':dualnet_outavg,
+    'inceptionv3_ucf101_sim':inceptionv3_ucf101_sim,
+    'inceptionv3_kinetics400_sim':inceptionv3_kinetics400_sim
     }
 
 def get_model(name, **kwargs):
