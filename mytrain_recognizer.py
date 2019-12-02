@@ -12,32 +12,23 @@ from mxnet.contrib import amp
 
 from gluoncv.data.transforms import video
 from gluoncv.data import UCF101, Kinetics400, SomethingSomethingV2, HMDB51
-from ucf101_bgs import UCF101_Bgs
-
-from gluoncv.utils import makedirs, LRSequential, LRScheduler, split_and_load, TrainingHistory
-from gluoncv.data.sampler import SplitSampler
 #from gluoncv.model_zoo import get_model
-from model_zoo import get_model as myget
-
+from gluoncv.utils import makedirs, LRSequential, LRScheduler, split_and_load
+from gluoncv.data.sampler import SplitSampler
+from model_zoo import get_model 
 # CLI
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a model for action recognition.')
-    parser.add_argument('--dataset', type=str, default='ucf101', choices=['ucf101','ucf101_bgs', 'kinetics400', 'somethingsomethingv2', 'hmdb51'],
+    parser.add_argument('--dataset', type=str, default='ucf101', choices=['ucf101', 'kinetics400', 'somethingsomethingv2', 'hmdb51'],
                         help='which dataset to use.')
-    parser.add_argument('--data-dir', type=str, default='/home/hp/.mxnet/datasets/ucf101/rawframes',
+    parser.add_argument('--data-dir', type=str, default='~/.mxnet/datasets/ucf101/rawframes',
                         help='training (and validation) pictures to use.')
-    parser.add_argument('--val-data-dir', type=str, default='/home/hp/.mxnet/datasets/ucf101/rawframes',
+    parser.add_argument('--val-data-dir', type=str, default='~/.mxnet/datasets/ucf101/rawframes',
                         help='validation pictures to use.')
-    parser.add_argument('--data-dir-fgs', type=str, default='/home/hp/.mxnet/datasets/ucf101/rawframes',
-                        help='training (and validation) pictures to use.')
-    parser.add_argument('--val-data-dir-fgs', type=str, default='/home/hp/.mxnet/datasets/ucf101/rawframes',
-                        help='validation pictures to use.')    
-    parser.add_argument('--train-list', type=str, default='/home/hp/.mxnet/datasets/ucf101/ucfTrainTestlist/ucf101_train_rgb_split1.txt',
+    parser.add_argument('--train-list', type=str, default='~/.mxnet/datasets/ucf101/ucfTrainTestlist/ucf101_train_rgb_split1.txt',
                         help='the list of training data')
-    parser.add_argument('--val-list', type=str, default='/home/hp/.mxnet/datasets/ucf101/ucfTrainTestlist/ucf101_val_rgb_split1.txt',
+    parser.add_argument('--val-list', type=str, default='~/.mxnet/datasets/ucf101/ucfTrainTestlist/ucf101_val_rgb_split1.txt',
                         help='the list of validation data')
-    parser.add_argument('--use-myget', action='store_true',
-                        help='use myget.')    
     parser.add_argument('--batch-size', type=int, default=25,
                         help='training batch size per device (CPU/GPU).')
     parser.add_argument('--dtype', type=str, default='float32',
@@ -152,10 +143,17 @@ def parse_args():
                         help='if set to True, use Decord video loader to load data. Otherwise use mmcv video loader.')
     parser.add_argument('--accumulate', type=int, default=1,
                         help='new step to accumulate gradient. If >1, the batch size is enlarged.')
+    parser.add_argument('--slowfast', action='store_true',
+                        help='if set to True, use data loader designed for SlowFast network.')
+    parser.add_argument('--slow-temporal-stride', type=int, default=16,
+                        help='the temporal stride for sparse sampling of video frames for slow branch in SlowFast network.')
+    parser.add_argument('--fast-temporal-stride', type=int, default=2,
+                        help='the temporal stride for sparse sampling of video frames for fast branch in SlowFast network.')
     parser.add_argument('--num-crop', type=int, default=1,
                         help='number of crops for each image. default is 1')
     parser.add_argument('--input-channel', type=int, default=3,
-                        help='number of first conv layer of \'simple\' model')
+                        help='number of first conv layer of \'simple\' model')    
+    
     opt = parser.parse_args()
     return opt
 
@@ -177,10 +175,12 @@ def get_data_loader(opt, batch_size, num_workers, logger, kvstore=None):
         train_dataset = Kinetics400(setting=opt.train_list, root=data_dir, train=True,
                                     new_width=opt.new_width, new_height=opt.new_height, new_length=opt.new_length, new_step=opt.new_step,
                                     target_width=input_size, target_height=input_size, video_loader=opt.video_loader, use_decord=opt.use_decord,
+                                    slowfast=opt.slowfast, slow_temporal_stride=opt.slow_temporal_stride, fast_temporal_stride=opt.fast_temporal_stride,
                                     num_segments=opt.num_segments, transform=transform_train)
         val_dataset = Kinetics400(setting=opt.val_list, root=val_data_dir, train=False,
                                   new_width=opt.new_width, new_height=opt.new_height, new_length=opt.new_length, new_step=opt.new_step,
                                   target_width=input_size, target_height=input_size, video_loader=opt.video_loader, use_decord=opt.use_decord,
+                                  slowfast=opt.slowfast, slow_temporal_stride=opt.slow_temporal_stride, fast_temporal_stride=opt.fast_temporal_stride,
                                   num_segments=opt.num_segments, transform=transform_test)
     elif opt.dataset == 'ucf101':
         train_dataset = UCF101(setting=opt.train_list, root=data_dir, train=True,
@@ -188,15 +188,6 @@ def get_data_loader(opt, batch_size, num_workers, logger, kvstore=None):
                                target_width=input_size, target_height=input_size,
                                num_segments=opt.num_segments, transform=transform_train)
         val_dataset = UCF101(setting=opt.val_list, root=data_dir, train=False,
-                             new_width=opt.new_width, new_height=opt.new_height, new_length=opt.new_length,
-                             target_width=input_size, target_height=input_size,
-                             num_segments=opt.num_segments, transform=transform_test)
-    elif opt.dataset == 'ucf101_bgs':
-        train_dataset = UCF101_Bgs(setting=opt.train_list, root_bgs=data_dir,root_fgs=opt.data_dir_fgs, train=True,
-                               new_width=opt.new_width, new_height=opt.new_height, new_length=opt.new_length,
-                               target_width=input_size, target_height=input_size,
-                               num_segments=opt.num_segments, transform=transform_train)
-        val_dataset = UCF101_Bgs(setting=opt.val_list, root_bgs=data_dir,root_fgs=opt.data_dir_fgs, train=False,
                              new_width=opt.new_width, new_height=opt.new_height, new_length=opt.new_length,
                              target_width=input_size, target_height=input_size,
                              num_segments=opt.num_segments, transform=transform_test)
@@ -252,8 +243,6 @@ def main():
     logger.info(opt)
 
     sw = SummaryWriter(logdir=opt.save_dir, flush_secs=5, verbose=False)
-    
-    train_history = TrainingHistory(['training-acc','val-top1-acc','val-top5-acc'])
 
     if opt.kvstore is not None:
         kv = mx.kvstore.create(opt.kvstore)
@@ -278,7 +267,11 @@ def main():
         lr_decay_epoch = [int(i) for i in opt.lr_decay_epoch.split(',')]
     lr_decay_epoch = [e - opt.warmup_epochs for e in lr_decay_epoch]
 
-    optimizer = 'sgd'
+    if opt.slowfast:
+        optimizer = 'nag'
+    else:
+        optimizer = 'sgd'
+
     if opt.clip_grad > 0:
         optimizer_params = {'learning_rate': opt.lr, 'wd': opt.wd, 'momentum': opt.momentum, 'clip_gradient': opt.clip_grad}
     else:
@@ -290,12 +283,8 @@ def main():
     model_name = opt.model
     if opt.use_pretrained and len(opt.hashtag) > 0:
         opt.use_pretrained = opt.hashtag
-    
-    net = myget(name=model_name, nclass=classes, pretrained=opt.use_pretrained,
+    net = get_model(name=model_name, nclass=classes, pretrained=opt.use_pretrained,
                     use_tsn=opt.use_tsn, num_segments=opt.num_segments, partial_bn=opt.partial_bn, input_channel=opt.input_channel)
-
-#    net = get_model(name=model_name, nclass=classes, pretrained=opt.use_pretrained,
-#                use_tsn=opt.use_tsn, num_segments=opt.num_segments, partial_bn=opt.partial_bn)
     net.cast(opt.dtype)
     net.collect_params().reset_ctx(context)
     logger.info(net)
@@ -310,7 +299,7 @@ def main():
 
     num_batches = len(train_data)
     lr_scheduler = LRSequential([
-        LRScheduler('linear', base_lr=0, target_lr=opt.lr,
+        LRScheduler('linear', base_lr=opt.warmup_lr, target_lr=opt.lr,
                     nepochs=opt.warmup_epochs, iters_per_epoch=num_batches),
         LRScheduler(opt.lr_mode, base_lr=opt.lr, target_lr=0,
                     nepochs=opt.num_epochs - opt.warmup_epochs,
@@ -335,7 +324,6 @@ def main():
             outputs = []
             for _, X in enumerate(data):
 #                X = X.reshape((-1,) + X.shape[2:])
-#                X = X.reshape((-1,15)+X.shape[-2:])
                 X = X.reshape((-3,-3,-2))
                 pred = net(X.astype(opt.dtype, copy=False))
                 outputs.append(pred)
@@ -371,8 +359,6 @@ def main():
         return (top1, top5, val_loss)
 
     def train(ctx):
-        
-        
         if isinstance(ctx, mx.Context):
             ctx = [ctx]
 
@@ -428,7 +414,6 @@ def main():
                     outputs = []
                     for _, X in enumerate(data):
 #                        X = X.reshape((-1,) + X.shape[2:])
-#                        X = X.reshape((-1,15)+X.shape[-2:])
                         X = X.reshape((-3,-3,-2))
                         pred = net(X.astype(opt.dtype, copy=False))
                         outputs.append(pred)
@@ -484,8 +469,6 @@ def main():
             logger.info('[Epoch %03d] training: %s=%f\t loss=%f' % (epoch, train_metric_name, train_metric_score*100, train_loss_epoch/num_train_iter))
             logger.info('[Epoch %03d] speed: %d samples/sec\ttime cost: %f' % (epoch, throughput, time.time()-tic))
             logger.info('[Epoch %03d] validation: acc-top1=%f acc-top5=%f loss=%f' % (epoch, acc_top1_val*100, acc_top5_val*100, loss_val))
-            # Update history and print metrics
-            train_history.update([train_metric_score*100, acc_top1_val*100, acc_top5_val*100])
 
             sw.add_scalar(tag='train_loss_epoch', value=train_loss_epoch/num_train_iter, global_step=epoch)
             sw.add_scalar(tag='val_loss_epoch', value=loss_val, global_step=epoch)
@@ -509,7 +492,6 @@ def main():
 
     train(context)
     sw.close()
-    train_history.plot(save_path=os.path.join(opt.save_dir,'train_log.jpg'))
 
 
 if __name__ == '__main__':
