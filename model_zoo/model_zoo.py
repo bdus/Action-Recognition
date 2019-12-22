@@ -12,6 +12,9 @@ from .simple import *
 from .MSEloss_vgg import *
 from .test_1E4 import *
 from .actionrec_inceptionv3 import *
+from .inceptionv3_LSTM import *
+from .inception_v3_k400ft import *
+from .C3D import *
 
 __all__ = ['get_model', 'get_model_list']
 
@@ -23,7 +26,10 @@ _models = {
     'dualnet_outmax':dualnet_outmax,
     'dualnet_outavg':dualnet_outavg,
     'inceptionv3_ucf101_sim':inceptionv3_ucf101_sim,
-    'inceptionv3_kinetics400_sim':inceptionv3_kinetics400_sim
+    'inceptionv3_kinetics400_sim':inceptionv3_kinetics400_sim,
+    'inceptionv3_ucf101_lstm':inceptionv3_ucf101_lstm,
+    'inceptionv3_ucf101_k400ft':inceptionv3_ucf101_k400ft,
+    'c3d':c3d
     }
 
 def get_model(name, **kwargs):
