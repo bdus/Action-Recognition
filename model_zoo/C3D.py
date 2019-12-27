@@ -26,7 +26,7 @@ from mxnet.gluon.nn import HybridBlock
 __all__ = ['c3d']
 
 class C3D(HybridBlock):
-    def __init__(self,nclass,dropout_ratio=0.5, batch_normal = False, init_std=0.001,**kwargs):
+    def __init__(self,nclass,dropout_ratio=0.5, batch_normal = True, init_std=0.001,**kwargs):
         super(C3D, self).__init__()
         self.nclass = nclass
         self.num_segments = 16

@@ -7,3 +7,6 @@ from .actionrec_inceptionv3 import *
 from .inceptionv3_LSTM import *
 from .inception_v3_k400ft import *
 from .C3D import *
+from .Res3D import *
+from .F_stCN import *
+from .R21D import *

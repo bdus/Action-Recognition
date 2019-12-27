@@ -15,6 +15,9 @@ from .actionrec_inceptionv3 import *
 from .inceptionv3_LSTM import *
 from .inception_v3_k400ft import *
 from .C3D import *
+from .Res3D import *
+from .F_stCN import *
+from .R21D import *
 
 __all__ = ['get_model', 'get_model_list']
 
@@ -29,7 +32,10 @@ _models = {
     'inceptionv3_kinetics400_sim':inceptionv3_kinetics400_sim,
     'inceptionv3_ucf101_lstm':inceptionv3_ucf101_lstm,
     'inceptionv3_ucf101_k400ft':inceptionv3_ucf101_k400ft,
-    'c3d':c3d
+    'c3d':c3d,
+    'resnet18_3d':resnet18_3d,
+    'fstcn_3d':fstcn_3d,
+    'res21d_34_3d':res21d_34_3d
     }
 
 def get_model(name, **kwargs):
