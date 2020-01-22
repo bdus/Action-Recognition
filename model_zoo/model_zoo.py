@@ -18,6 +18,9 @@ from .C3D import *
 from .Res3D import *
 from .F_stCN import *
 from .R21D import *
+from .ECO import *
+from .resnet18_v1b_ucf101 import *
+
 
 __all__ = ['get_model', 'get_model_list']
 
@@ -35,7 +38,12 @@ _models = {
     'c3d':c3d,
     'resnet18_3d':resnet18_3d,
     'fstcn_3d':fstcn_3d,
-    'res21d_34_3d':res21d_34_3d
+    'res21d_34_3d':res21d_34_3d,
+    'eco_resnet18_v2':eco_resnet18_v2,
+    'eco_resnet18_v1b':eco_resnet18_v1b,
+    'resnet18_v1b_ucf101':resnet18_v1b_ucf101,
+    'eco_resnet18_v1b_k400':eco_resnet18_v1b_k400,
+    'resnet18_v1b_k400_ucf101':resnet18_v1b_k400_ucf101
     }
 
 def get_model(name, **kwargs):

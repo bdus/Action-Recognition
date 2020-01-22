@@ -10,3 +10,6 @@ from .C3D import *
 from .Res3D import *
 from .F_stCN import *
 from .R21D import *
+from .ECO import *
+from .resnet18_v1b_ucf101 import *
+

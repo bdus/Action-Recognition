@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Oct 31 18:19:32 2019
+Created on 2020-1-19 00:05:43
 
 @author: bdus
 
-https://gluon-cv.mxnet.io/build/examples_action_recognition/dive_deep_ucf101.html#start-training-now
 
 """
 from __future__ import division
@@ -13,7 +12,6 @@ from __future__ import division
 import argparse, time, logging, os, sys, math
 os.environ['MXNET_CUDNN_AUTOTUNE_DEFAULT']='0'
 os.environ['CUDA_VISIBLE_DEVICES']='0' #0,1
-
 
 import numpy as np
 import mxnet as mx
@@ -50,8 +48,8 @@ class AttrDisplay:
 class config(AttrDisplay):
     def __init__(self):
         self.new_length = 1
-        self.model = 'resnet18_v1b_k400_ucf101'
-        self.save_dir = 'logs/param_rgb_resnet18_v1b_k400_ucf101_1'
+        self.model = 'resnet18_v1b_ucf101'
+        self.save_dir = 'logs/param_rgb_resnet18_v1b_ucf101_lr01'
         self.num_classes = 101
         self.new_length_diff = self.new_length +1 
         self.train_dir = os.path.expanduser('~/.mxnet/datasets/ucf101/rawframes')
@@ -67,7 +65,7 @@ class config(AttrDisplay):
         self.num_segments=1
         self.num_workers = 2
         self.num_gpus = 1
-        self.per_device_batch_size = 150
+        self.per_device_batch_size = 180
         self.lr = 0.01
         self.lr_decay = 0.1
         self.warmup_lr = 0
@@ -76,8 +74,8 @@ class config(AttrDisplay):
         self.wd = 0.0005        
         self.prefetch_ratio = 1.0
         self.use_amp = False
-        self.epochs = 120
-        self.lr_decay_epoch = [30,60,80,100]
+        self.epochs = 100
+        self.lr_decay_epoch = [30,60,80]
         self.dtype = 'float32'
         self.use_pretrained = False
         self.partial_bn = False
@@ -85,10 +83,10 @@ class config(AttrDisplay):
         self.log_interval = 10
         self.lr_mode = 'step'        
         self.resume_epoch = 0
-        self.resume_params = ''#os.path.join(self.save_dir,'0.6823-ucf101-eco_resnet18_v2-034-best.params')
-        self.resume_states = ''#os.path.join(self.save_dir,'0.6823-ucf101-eco_resnet18_v2-034-best.states')
+        self.resume_params = os.path.join('logs/param_rgb_resnet18_v1b_ucf101','0.7505-ucf101-resnet18_v1b_ucf101-085-best.params')
+        self.resume_states = os.path.join('logs/param_rgb_resnet18_v1b_ucf101','0.7505-ucf101-resnet18_v1b_ucf101-085-best.states')
         self.reshape_type = 'tsn' # c3d tsn tsn_newlength
-
+      
 
 opt = config()
 
@@ -307,4 +305,4 @@ for epoch in range(opt.resume_epoch, opt.epochs):
         trainer.save_states('%s/%.4f-%s-%s-%03d-best.states'%(opt.save_dir, best_val_score, opt.dataset, opt.model, epoch))            
 
 # We can plot the metric scores with:
-train_history.plot(save_path=os.path.join(opt.save_dir,'trainlog.jpg'))
+train_history.plot(save_path=os.path.join(self.save_dir,'trainlog.jpg'))
