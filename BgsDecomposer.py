@@ -48,6 +48,7 @@ class PreProcessor:
         self.classes = os.listdir(rawframepath)
         
     def mkdir(self,path):
+#        pass
         if not os.path.exists(path):
             os.mkdir(path)
     
@@ -69,17 +70,23 @@ class PreProcessor:
             return False
         else:
             print('process:',str(video))
+
             method = function()        
+
             self.mkdir(bgpath3)
             self.mkdir(fgpath3)
             image_array = os.listdir(vpath)
             image_array = sorted(image_array)
+
+            # preprocess of video to perform better result
+
             for x in range(0,len(image_array)):
                 img_path = os.path.join(vpath,image_array[x])
                 # read file into open cv and apply to algorithm to generate background model
                 #print(img_path)                        
                 assert os.path.exists(img_path)
                 img = cv2.imread(img_path,cv2.IMREAD_COLOR)
+
     #                        print(img.shape)
                 img_output = method.apply(img)
                 img_bgmodel = method.getBackgroundModel()
@@ -88,6 +95,7 @@ class PreProcessor:
     #                        cv2.imshow('img_output', img_output)
     #                        cv2.imshow('img_bgmodel', img_bgmodel)
                 # we need waitKey otherwise it wont display the image
+
                 if 0xFF & cv2.waitKey(10) == 27:
                   break
             
@@ -103,7 +111,12 @@ class PreProcessor:
         assert type(self.algorithms) == list
         for algorithm in self.algorithms:
             print(algorithm)
-            fun = eval(''.join(['bgs.',str(algorithm)]))
+            if algorithm == 'cv_MOG2':
+                fun = cv2.createBackgroundSubtractorMOG2
+            elif algorithm == 'cv_KNN':
+                fun = cv2.createBackgroundSubtractorKNN
+            else:                          
+                fun = eval(''.join(['bgs.',str(algorithm)]))
 #            method = fun()
             spath = os.path.join(self.output_base,str(algorithm))
             bgpath1 = os.path.join(spath,'bgs')
@@ -113,8 +126,13 @@ class PreProcessor:
             self.mkdir(fgpath1)
             for vclass in self.classes:
                 cpath = os.path.join(self.rawframepath,vclass)
+
                 bgpath2 = bgpath1 #os.path.join(bgpath1,vclass)
                 fgpath2 = fgpath1 #os.path.join(fgpath1,vclass)
+
+                #self.mkdir(bgpath2)
+                #self.mkdir(fgpath2)
+
       
                 Parallel(n_jobs=20)(delayed(self.per_video)(video,cpath,bgpath2,fgpath2,fun) for video in os.listdir(cpath))
 #                for video in os.listdir(cpath):
@@ -124,6 +142,7 @@ class PreProcessor:
 
 def main():
     a = PreProcessor('/media/hp/dataset/UCF101/mxnet/rawframes','/media/hp/data/BGSDecom',['FrameDifference','ViBe','SuBSENSE'])
+
     a.apply_algorithm()
 
     

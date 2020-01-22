@@ -12,10 +12,10 @@ from mxnet.contrib import amp
 
 from gluoncv.data.transforms import video
 from gluoncv.data import UCF101, Kinetics400, SomethingSomethingV2, HMDB51
-from gluoncv.model_zoo import get_model
+#from gluoncv.model_zoo import get_model
 from gluoncv.utils import makedirs, LRSequential, LRScheduler, split_and_load
 from gluoncv.data.sampler import SplitSampler
-
+from model_zoo import get_model 
 # CLI
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a model for action recognition.')
@@ -151,6 +151,9 @@ def parse_args():
                         help='the temporal stride for sparse sampling of video frames for fast branch in SlowFast network.')
     parser.add_argument('--num-crop', type=int, default=1,
                         help='number of crops for each image. default is 1')
+    parser.add_argument('--input-channel', type=int, default=3,
+                        help='number of first conv layer of \'simple\' model')    
+    
     opt = parser.parse_args()
     return opt
 
@@ -281,7 +284,7 @@ def main():
     if opt.use_pretrained and len(opt.hashtag) > 0:
         opt.use_pretrained = opt.hashtag
     net = get_model(name=model_name, nclass=classes, pretrained=opt.use_pretrained,
-                    use_tsn=opt.use_tsn, num_segments=opt.num_segments, partial_bn=opt.partial_bn)
+                    use_tsn=opt.use_tsn, num_segments=opt.num_segments, partial_bn=opt.partial_bn, input_channel=opt.input_channel)
     net.cast(opt.dtype)
     net.collect_params().reset_ctx(context)
     logger.info(net)
@@ -320,7 +323,8 @@ def main():
             data, label = batch_fn(batch, ctx)
             outputs = []
             for _, X in enumerate(data):
-                X = X.reshape((-1,) + X.shape[2:])
+#                X = X.reshape((-1,) + X.shape[2:])
+                X = X.reshape((-3,-3,-2))
                 pred = net(X.astype(opt.dtype, copy=False))
                 outputs.append(pred)
 
@@ -409,7 +413,8 @@ def main():
                 with ag.record():
                     outputs = []
                     for _, X in enumerate(data):
-                        X = X.reshape((-1,) + X.shape[2:])
+#                        X = X.reshape((-1,) + X.shape[2:])
+                        X = X.reshape((-3,-3,-2))
                         pred = net(X.astype(opt.dtype, copy=False))
                         outputs.append(pred)
                     loss = [L(yhat, y.astype(opt.dtype, copy=False)) for yhat, y in zip(outputs, label)]

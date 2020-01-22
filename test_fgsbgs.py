@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Oct 31 18:19:32 2019
+Created on Mon Nov 18 13:54:16 2019
 
 @author: bdus
 
-https://gluon-cv.mxnet.io/build/examples_action_recognition/dive_deep_ucf101.html#start-training-now
+take background and foreground as input
+
 
 """
+
 from __future__ import division
 
 import argparse, time, logging, os, sys, math
@@ -21,7 +23,8 @@ from mxnet.gluon import nn
 from mxnet.gluon.data.vision import transforms
 
 from gluoncv.data.transforms import video
-from gluoncv.data import ucf101
+#from gluoncv.data import ucf101
+import ucf101_bgs as ucf101
 from gluoncv.model_zoo import get_model
 from gluoncv.utils import makedirs, LRSequential, LRScheduler, split_and_load, TrainingHistory
 
@@ -34,7 +37,8 @@ ctx = [mx.gpu(1)]
 
 # Get the model 
 #net = get_model(name='vgg16_ucf101', nclass=101, num_segments=3)
-net = myget(name='simple', nclass=101, num_segments=7,input_channel=15)
+#net = myget(name='simple', nclass=101, num_segments=3)
+net = myget(name='dualnet_outavg', nclass=101, num_segments=3)
 
 net.collect_params().reset_ctx(ctx)
 #print(net)
@@ -53,9 +57,9 @@ transform_train = transforms.Compose([
 ])
 
 # Batch Size for Each GPU
-per_device_batch_size = 10
+per_device_batch_size = 8
 # Number of data loader workers
-num_workers = 1
+num_workers = 2
 # Calculate effective total batch size
 batch_size = per_device_batch_size * num_gpus
 
@@ -69,16 +73,18 @@ batch_size = per_device_batch_size * num_gpus
 #                setting='/home/hp/.mxnet/datasets/ucf101/ucfTrainTestlist/ucf101_train_split_2_rawframes.txt',
 #                name_pattern='image_%05d.jpg')
 
-train_dataset = ucf101.classification.UCF101(train=True, num_segments=7,new_length=5, transform=transform_train,
-                                             root='/media/hp/data/BGSDecom/PixelBasedAdaptiveSegmenter/fgs',#'/home/hp/lixiaoyu/dataset/flow',
-                                             setting='/home/hp/lixiaoyu/dataset/data/ucf101_rgb_flow/ucf101_rgb_train_split_1.txt',
+train_dataset = ucf101.classification.UCF101(train=True, num_segments=3, transform=transform_train,
+                                             root_bgs='/media/hp/data/BGSDecom/FrameDifference/bgs',
+                                             root_fgs='/media/hp/data/BGSDecom/FrameDifference/fgs',
+                                             setting='/home/hp/lixiaoyu/dataset/data/ucf101_rgb_flow/ucf101_rgb_train_split_2.txt',
                                              name_pattern='img_%05d.jpg'#'img_%05d.jpg'
                                              )
 
-val_dataset = ucf101.classification.UCF101(train=False, num_segments=7,new_length=5, transform=transform_train,
-                                             root='/media/hp/data/BGSDecom/PixelBasedAdaptiveSegmenter/fgs',#'/home/hp/lixiaoyu/dataset/flow',
-                                             setting='/home/hp/lixiaoyu/dataset/data/ucf101_rgb_flow/ucf101_rgb_val_split_1.txt',
-                                             name_pattern='img_%05d.jpg',#'img_%05d.jpg'                                             
+val_dataset = ucf101.classification.UCF101(train=False, num_segments=3, transform=transform_train,
+                                             root_bgs='/media/hp/data/BGSDecom/FrameDifference/bgs',#'/home/hp/lixiaoyu/dataset/flow',
+                                             root_fgs='/media/hp/data/BGSDecom/FrameDifference/fgs',
+                                             setting='/home/hp/lixiaoyu/dataset/data/ucf101_rgb_flow/ucf101_rgb_val_split_2.txt',
+                                             name_pattern='img_%05d.jpg'#'img_%05d.jpg'
                                              )
 
 train_data = gluon.data.DataLoader(train_dataset, batch_size=batch_size,
@@ -107,7 +113,7 @@ train_metric = mx.metric.Accuracy()
 
 train_history = TrainingHistory(['training-acc','val-top1-acc','val-top5-acc'])
 
-epochs = 2
+epochs = 80
 lr_decay_count = 0
 
 acc_top1 = mx.metric.Accuracy()
@@ -120,14 +126,14 @@ def test(ctx,val_data):
     num_test_iter = len(val_data)
     val_loss_epoch = 0
     for i, batch in enumerate(val_data):
-        data = split_and_load(batch[0], ctx_list=ctx, batch_axis=0)
-        label = split_and_load(batch[1], ctx_list=ctx, batch_axis=0)
+        data_bgs = split_and_load(batch[0], ctx_list=ctx, batch_axis=0)
+        data_fgs = split_and_load(batch[1], ctx_list=ctx, batch_axis=0)
+        label = split_and_load(batch[2], ctx_list=ctx, batch_axis=0)
         val_outputs = []
-        for _, X in enumerate(data):
-#            X = X.reshape((-1,) + X.shape[2:])
-#            X = X.reshape((-1,15)+X.shape[-2:])
-            X = X.reshape((-3,-3,-2))
-            pred = net(X)
+        for _, (X_bgs,X_fgs) in enumerate(zip(data_bgs,data_fgs)):
+            X_bgs = X_bgs.reshape((-1,) + X_bgs.shape[2:])
+            X_fgs = X_fgs.reshape((-1,) + X_fgs.shape[2:])
+            pred = net(X_bgs,X_fgs)
             val_outputs.append(pred)
             
         loss = [L(yhat, y) for yhat, y in zip(val_outputs, label)]
@@ -156,18 +162,17 @@ for epoch in range(epochs):
     # Loop through each batch of training data
     for i, batch in enumerate(train_data):
         # Extract data and label
-        data = split_and_load(batch[0], ctx_list=ctx, batch_axis=0)
-        label = split_and_load(batch[1], ctx_list=ctx, batch_axis=0)
+        data_bgs = split_and_load(batch[0], ctx_list=ctx, batch_axis=0)
+        data_fgs = split_and_load(batch[1], ctx_list=ctx, batch_axis=0)
+        label = split_and_load(batch[2], ctx_list=ctx, batch_axis=0)
         
-
         # AutoGrad
         with ag.record():
             output = []
-            for _, X in enumerate(data):
-#                X = X.reshape((-1,) + X.shape[2:])
-#                X = X.reshape((-1,15)+X.shape[-2:])
-                X = X.reshape((-3,-3,-2))                
-                pred = net(X)
+            for _, (X_bgs,X_fgs) in enumerate(zip(data_bgs,data_fgs)):
+                X_bgs = X_bgs.reshape((-1,) + X_bgs.shape[2:])
+                X_fgs = X_fgs.reshape((-1,) + X_fgs.shape[2:])
+                pred = net(X_bgs,X_fgs)
                 output.append(pred)
             loss = [loss_fn(yhat, y) for yhat, y in zip(output, label)]
 

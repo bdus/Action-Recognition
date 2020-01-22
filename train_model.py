@@ -14,6 +14,7 @@ import argparse, time, logging, os, sys, math
 os.environ['MXNET_CUDNN_AUTOTUNE_DEFAULT']='0'
 os.environ['CUDA_VISIBLE_DEVICES']='0' #0,1
 
+
 import numpy as np
 import mxnet as mx
 import gluoncv as gcv
@@ -87,7 +88,7 @@ class config(AttrDisplay):
         self.resume_params = ''#os.path.join(self.save_dir,'0.6823-ucf101-eco_resnet18_v2-034-best.params')
         self.resume_states = ''#os.path.join(self.save_dir,'0.6823-ucf101-eco_resnet18_v2-034-best.states')
         self.reshape_type = 'tsn' # c3d tsn tsn_newlength
-      
+
 
 opt = config()
 

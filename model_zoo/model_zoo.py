@@ -21,6 +21,7 @@ from .R21D import *
 from .ECO import *
 from .resnet18_v1b_ucf101 import *
 
+
 __all__ = ['get_model', 'get_model_list']
 
 _models = {
