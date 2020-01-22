@@ -10,12 +10,39 @@ see : https://github.com/bdus/hyperspectral/blob/master/indian_pines/indian_semi
 """
 from .simple import *
 from .MSEloss_vgg import *
+from .test_1E4 import *
+from .actionrec_inceptionv3 import *
+from .inceptionv3_LSTM import *
+from .inception_v3_k400ft import *
+from .C3D import *
+from .Res3D import *
+from .F_stCN import *
+from .R21D import *
+from .ECO import *
+from .resnet18_v1b_ucf101 import *
 
 __all__ = ['get_model', 'get_model_list']
 
 _models = {
     'simple':simple,
-    'mseloss_vgg16':mseloss_vgg16
+    'mseloss_vgg16':mseloss_vgg16,
+    'dualnet_max':dualnet_max,
+    'dualnet_avg':dualnet_avg,
+    'dualnet_outmax':dualnet_outmax,
+    'dualnet_outavg':dualnet_outavg,
+    'inceptionv3_ucf101_sim':inceptionv3_ucf101_sim,
+    'inceptionv3_kinetics400_sim':inceptionv3_kinetics400_sim,
+    'inceptionv3_ucf101_lstm':inceptionv3_ucf101_lstm,
+    'inceptionv3_ucf101_k400ft':inceptionv3_ucf101_k400ft,
+    'c3d':c3d,
+    'resnet18_3d':resnet18_3d,
+    'fstcn_3d':fstcn_3d,
+    'res21d_34_3d':res21d_34_3d,
+    'eco_resnet18_v2':eco_resnet18_v2,
+    'eco_resnet18_v1b':eco_resnet18_v1b,
+    'resnet18_v1b_ucf101':resnet18_v1b_ucf101,
+    'eco_resnet18_v1b_k400':eco_resnet18_v1b_k400,
+    'resnet18_v1b_k400_ucf101':resnet18_v1b_k400_ucf101
     }
 
 def get_model(name, **kwargs):

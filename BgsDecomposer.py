@@ -17,6 +17,9 @@ import numpy as np
 import cv2
 import pybgs as bgs
 
+from joblib import delayed
+from joblib import Parallel
+
 def parse_args():
     parser = argparse.ArgumentParser(description='Use algorithms from bgslibrary decomposition a rawframe-video-folder into forground and background and save it.')
     parser.add_argument('rawframepath',type=str,help='Input path where video are stored as rawframes.')
@@ -57,34 +60,43 @@ class PreProcessor:
         list2 = os.listdir(path2)
         return len(list1) == len(list2)
     
-    def per_video(self,vpath,bgpath,fgpath,function):        
-        method = function()        
-        self.mkdir(bgpath)
-        self.mkdir(fgpath)
-        image_array = os.listdir(vpath)
-        image_array = sorted(image_array)
-        for x in range(0,len(image_array)):
-            img_path = os.path.join(vpath,image_array[x])
-            # read file into open cv and apply to algorithm to generate background model
-            #print(img_path)                        
-            assert os.path.exists(img_path)
-            img = cv2.imread(img_path,cv2.IMREAD_COLOR)
-#                        print(img.shape)
-            img_output = method.apply(img)
-            img_bgmodel = method.getBackgroundModel()
-#                        # show images in python imshow window
-#                        cv2.imshow('image', img)
-#                        cv2.imshow('img_output', img_output)
-#                        cv2.imshow('img_bgmodel', img_bgmodel)
-            # we need waitKey otherwise it wont display the image
-            if 0xFF & cv2.waitKey(10) == 27:
-              break
-        
-            # Comment out to save images to bg and fg folder
-            img_bg = os.path.join(bgpath,image_array[x])
-            img_fg = os.path.join(fgpath,image_array[x])
-            cv2.imwrite(img_bg, img_bgmodel)
-            cv2.imwrite(img_fg, img_output)
+    def per_video(self,video,cpath,bgpath2,fgpath2,function):
+        vpath = os.path.join(cpath,video)
+        bgpath3 = os.path.join(bgpath2,video)
+        fgpath3 = os.path.join(fgpath2,video)
+        if self.equal_item(vpath,fgpath3) and self.equal_item(bgpath3,vpath):
+            print('sikp:',str(video))
+            return False
+        else:
+            print('process:',str(video))
+            method = function()        
+            self.mkdir(bgpath3)
+            self.mkdir(fgpath3)
+            image_array = os.listdir(vpath)
+            image_array = sorted(image_array)
+            for x in range(0,len(image_array)):
+                img_path = os.path.join(vpath,image_array[x])
+                # read file into open cv and apply to algorithm to generate background model
+                #print(img_path)                        
+                assert os.path.exists(img_path)
+                img = cv2.imread(img_path,cv2.IMREAD_COLOR)
+    #                        print(img.shape)
+                img_output = method.apply(img)
+                img_bgmodel = method.getBackgroundModel()
+    #                        # show images in python imshow window
+    #                        cv2.imshow('image', img)
+    #                        cv2.imshow('img_output', img_output)
+    #                        cv2.imshow('img_bgmodel', img_bgmodel)
+                # we need waitKey otherwise it wont display the image
+                if 0xFF & cv2.waitKey(10) == 27:
+                  break
+            
+                # Comment out to save images to bg and fg folder
+                img_bg = os.path.join(bgpath3,image_array[x])
+                img_fg = os.path.join(fgpath3,image_array[x])
+                cv2.imwrite(img_bg, img_bgmodel)
+                cv2.imwrite(img_fg, img_output)
+    
 
     def apply_algorithm(self):
         #save as : self.output_base/algorithms/bgs or fgs/classes/video/img.jpg
@@ -103,22 +115,15 @@ class PreProcessor:
                 cpath = os.path.join(self.rawframepath,vclass)
                 bgpath2 = bgpath1 #os.path.join(bgpath1,vclass)
                 fgpath2 = fgpath1 #os.path.join(fgpath1,vclass)
-#                os.mkdir(bgpath2)
-#                os.mkdir(fgpath2)                
-                for video in os.listdir(cpath):
-                    vpath = os.path.join(cpath,video)
-                    bgpath3 = os.path.join(bgpath2,video)
-                    fgpath3 = os.path.join(fgpath2,video)
-                    if self.equal_item(vpath,fgpath3) and self.equal_item(bgpath3,vpath):
-                        print('sikp:',str(video))
-                        continue
-                    else:
-                        print('process:',str(video))
-                        self.per_video(vpath,bgpath3,fgpath3,fun)
+      
+                Parallel(n_jobs=20)(delayed(self.per_video)(video,cpath,bgpath2,fgpath2,fun) for video in os.listdir(cpath))
+#                for video in os.listdir(cpath):
+#                    self.per_video(video,cpath,bgpath2,fgpath2,fun)
+
            
 
 def main():
-    a = PreProcessor('/media/hp/dataset/UCF101/mxnet/rawframes','/media/hp/data/BGSDecom',['FrameDifference'])
+    a = PreProcessor('/media/hp/dataset/UCF101/mxnet/rawframes','/media/hp/data/BGSDecom',['FrameDifference','ViBe','SuBSENSE'])
     a.apply_algorithm()
 
     

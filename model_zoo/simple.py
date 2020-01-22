@@ -13,11 +13,11 @@ from mxnet.gluon.nn import HybridBlock
 from gluoncv.model_zoo import vgg16
 
 
-__all__ = ['Simple','simple']
+__all__ = ['simple']
 
 class Simple(HybridBlock):
     def __init__(self,nclass,num_segments, num_crop=1,input_channel=3,dropout_ratio=0.9, init_std=0.001,feat_dim=4096,**kwargs):
-        super(Simple, self).__init__(**kwargs)
+        super(Simple, self).__init__()
         self.nclass = nclass
         self.num_segments = num_segments
         self.feat_dim = feat_dim
@@ -33,7 +33,8 @@ class Simple(HybridBlock):
             # change the input channel of first layer convnet                             
             self.feature = nn.HybridSequential()
             with pretrained_model.name_scope():
-                self.feature.add(nn.Conv2D(in_channels=input_channel,channels=64,kernel_size=3,strides=(1,1),padding=(1,1)))
+                self.feature.add(nn.Conv2D(in_channels=input_channel,channels=64,kernel_size=3,
+                                           strides=(1,1),padding=(1,1),weight_initializer=mx.init.Xavier(magnitude=2)))
             self.feature[0].initialize()
             for layer in vgg16_feature[1:]:
                 self.feature.add(layer)
