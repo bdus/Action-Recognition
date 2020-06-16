@@ -58,19 +58,19 @@ class ActionRecResNetV1b(HybridBlock):
             pretrained_model = resnet152_v1b(pretrained=pretrained_base, **kwargs)
             self.expansion = 4
         elif depth == 418:
-            pretrained_model = get_model('resnet18_v1b_kinetics400',pretrained=pretrained_base)
+            pretrained_model = get_model('resnet18_v1b_kinetics400',pretrained=True)
             self.expansion = 1
         elif depth == 434:
-            pretrained_model = get_model('resnet34_v1b_kinetics400',pretrained=pretrained_base)
+            pretrained_model = get_model('resnet34_v1b_kinetics400',pretrained=True)
             self.expansion = 1
         elif depth == 450:
-            pretrained_model = get_model('resnet50_v1b_kinetics400',pretrained=pretrained_base)
+            pretrained_model = get_model('resnet50_v1b_kinetics400',pretrained=True)
             self.expansion = 4
         elif depth == 501:
-            pretrained_model = get_model('resnet101_v1b_kinetics400',pretrained=pretrained_base)
+            pretrained_model = get_model('resnet101_v1b_kinetics400',pretrained=True)
             self.expansion = 4    
         elif depth == 552:
-            pretrained_model = get_model('resnet152_v1b_kinetics400',pretrained=pretrained_base)
+            pretrained_model = get_model('resnet152_v1b_kinetics400',pretrained=True)
             self.expansion = 4       
         else:
             print('No such ResNet configuration for depth=%d' % (depth))
@@ -156,13 +156,10 @@ def resnet34_v1b_ucf101(nclass=101, pretrained=False, pretrained_base=True,
                                num_segments=num_segments,
                                num_crop=num_crop,
                                dropout_ratio=0.5,
-                               pretrained_base = pretrained_base,
                                init_std=0.01,**kwargs)
 
     if pretrained:
         pass
-    if not pretrained_base:
-        model.initialize()        
     model.collect_params().reset_ctx(ctx)
     return model
 
@@ -249,7 +246,6 @@ def resnet34_v1b_k400_ucf101(nclass=101, pretrained=False, pretrained_base=True,
                                num_segments=num_segments,
                                num_crop=num_crop,
                                dropout_ratio=0.5,
-                               pretrained_base = pretrained_base,
                                init_std=0.01,**kwargs)
 
     if pretrained:
@@ -259,8 +255,6 @@ def resnet34_v1b_k400_ucf101(nclass=101, pretrained=False, pretrained_base=True,
         #filepath = os.path.expanduser(filepath)
         #model.load_parameters(filepath,allow_missing=True)
         #print(filepath)
-    if not pretrained_base:
-        model.initialize()
     model.collect_params().reset_ctx(ctx)
     return model
 

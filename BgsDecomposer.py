@@ -7,6 +7,7 @@ Created on Sat Nov  2 11:35:29 2019
 
 decomposition a video into forground and background
 
+conda deactivate
 """
 import sys
 import os
@@ -70,32 +71,37 @@ class PreProcessor:
             return False
         else:
             print('process:',str(video))
-
-            method = function()        
-
+            method = function()
+#            method = cv2.createBackgroundSubtractorMOG2()
             self.mkdir(bgpath3)
             self.mkdir(fgpath3)
             image_array = os.listdir(vpath)
             image_array = sorted(image_array)
-
             # preprocess of video to perform better result
-
             for x in range(0,len(image_array)):
                 img_path = os.path.join(vpath,image_array[x])
                 # read file into open cv and apply to algorithm to generate background model
                 #print(img_path)                        
                 assert os.path.exists(img_path)
                 img = cv2.imread(img_path,cv2.IMREAD_COLOR)
-
-    #                        print(img.shape)
                 img_output = method.apply(img)
-                img_bgmodel = method.getBackgroundModel()
+            
+            
+            for x in range(0,len(image_array)):
+                img_path = os.path.join(vpath,image_array[x])
+                # read file into open cv and apply to algorithm to generate background model
+                #print(img_path)                        
+                assert os.path.exists(img_path)
+                img = cv2.imread(img_path,cv2.IMREAD_COLOR)
+                img_output = method.apply(img)
+                img_bgmodel = cv2.medianBlur(img_output,3)
+#                img_bgmodel = method.getBackgroundModel()
     #                        # show images in python imshow window
-    #                        cv2.imshow('image', img)
-    #                        cv2.imshow('img_output', img_output)
-    #                        cv2.imshow('img_bgmodel', img_bgmodel)
-                # we need waitKey otherwise it wont display the image
-
+#                cv2.imshow('image', img)
+#                cv2.imshow('img_output', img_output)
+#                cv2.imshow('img_bgmodel', img_bgmodel)
+#                cv2.waitKey(0)
+                #we need waitKey otherwise it wont display the image                
                 if 0xFF & cv2.waitKey(10) == 27:
                   break
             
@@ -126,13 +132,10 @@ class PreProcessor:
             self.mkdir(fgpath1)
             for vclass in self.classes:
                 cpath = os.path.join(self.rawframepath,vclass)
-
-                bgpath2 = bgpath1 #os.path.join(bgpath1,vclass)
-                fgpath2 = fgpath1 #os.path.join(fgpath1,vclass)
-
-                #self.mkdir(bgpath2)
-                #self.mkdir(fgpath2)
-
+                bgpath2 = os.path.join(bgpath1,vclass)
+                fgpath2 = os.path.join(fgpath1,vclass)
+                self.mkdir(bgpath2)
+                self.mkdir(fgpath2)
       
                 Parallel(n_jobs=20)(delayed(self.per_video)(video,cpath,bgpath2,fgpath2,fun) for video in os.listdir(cpath))
 #                for video in os.listdir(cpath):
@@ -141,10 +144,11 @@ class PreProcessor:
            
 
 def main():
-    a = PreProcessor('/media/hp/dataset/UCF101/mxnet/rawframes','/media/hp/data/BGSDecom',['FrameDifference','ViBe','SuBSENSE'])
-
+    #a = PreProcessor('/home/hp/.mxnet/datasets/hmdb51/rawframes','/media/hp/8tB/BGSDecom_hmdb51',['cv_MOG2','cv_KNN'])
+    a = PreProcessor('/home/hp/.mxnet/datasets/ucf101/rawframes','/media/hp/mypan/BGSDecom',['FrameDifference'])
     a.apply_algorithm()
-
+#/home/hp/.mxnet/datasets/hmdb51/rawframes
+#/home/hp/.mxnet/datasets/ucf101/rawframes
     
 if __name__ == '__main__':
     main()

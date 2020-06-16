@@ -12,8 +12,7 @@ from __future__ import division
 
 import argparse, time, logging, os, sys, math
 os.environ['MXNET_CUDNN_AUTOTUNE_DEFAULT']='0'
-os.environ['CUDA_VISIBLE_DEVICES']='0' #0,1
-
+os.environ['CUDA_VISIBLE_DEVICES']='1' #0,1
 
 import numpy as np
 import mxnet as mx
@@ -50,8 +49,8 @@ class AttrDisplay:
 class config(AttrDisplay):
     def __init__(self):
         self.new_length = 1
-        self.model = 'resnet18_v1b_k400_ucf101'
-        self.save_dir = 'logs/param_rgb_resnet18_v1b_k400_ucf101_1'
+        self.model = 'eco_resnet18_v1b_k400_ucf101'
+        self.save_dir = 'logs/param_rgb_eco_resnet18_v1b_k400_ucf101'
         self.num_classes = 101
         self.new_length_diff = self.new_length +1 
         self.train_dir = os.path.expanduser('~/.mxnet/datasets/ucf101/rawframes')
@@ -64,10 +63,10 @@ class config(AttrDisplay):
         self.new_height=256#128#256#128
         self.new_width=340#171#340#171
         self.input_channel=3 
-        self.num_segments=1
+        self.num_segments=8
         self.num_workers = 2
         self.num_gpus = 1
-        self.per_device_batch_size = 150
+        self.per_device_batch_size = 30
         self.lr = 0.01
         self.lr_decay = 0.1
         self.warmup_lr = 0
@@ -76,8 +75,8 @@ class config(AttrDisplay):
         self.wd = 0.0005        
         self.prefetch_ratio = 1.0
         self.use_amp = False
-        self.epochs = 120
-        self.lr_decay_epoch = [30,60,80,100]
+        self.epochs = 100
+        self.lr_decay_epoch = [30,60,80]
         self.dtype = 'float32'
         self.use_pretrained = False
         self.partial_bn = False
@@ -88,7 +87,7 @@ class config(AttrDisplay):
         self.resume_params = ''#os.path.join(self.save_dir,'0.6823-ucf101-eco_resnet18_v2-034-best.params')
         self.resume_states = ''#os.path.join(self.save_dir,'0.6823-ucf101-eco_resnet18_v2-034-best.states')
         self.reshape_type = 'tsn' # c3d tsn tsn_newlength
-
+      
 
 opt = config()
 

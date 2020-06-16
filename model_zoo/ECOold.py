@@ -287,9 +287,8 @@ class ECO(nn.HybridBlock):
                              nn.Dense(units=self.nclass, in_units=512,
                                weight_initializer=init.Normal(sigma=self.init_std)) ) 
             # init
-            if pretrained_base:
-                self.features_3d.initialize(init.MSRAPrelu())
-                self.output.initialize(init.MSRAPrelu())
+            self.features_3d.initialize(init.MSRAPrelu())
+            self.output.initialize(init.MSRAPrelu())
 
     def hybrid_forward(self, F, x):
         #2d
@@ -357,14 +356,11 @@ def eco_resnet18_v1b(pretrained=False,
         pass
     return net
 
-def eco_resnet34_v1b_k400(pretrained=False, pretrained_base = True,
+def eco_resnet34_v1b_k400(pretrained=False,
                root='~/.mxnet/models', **kwargs):
-    net = ECO(base_model='resnet34_v1b_kinetics400',pretrained_base=pretrained_base,**kwargs)
+    net = ECO(base_model='resnet34_v1b_kinetics400',**kwargs)
     if pretrained:
         pass
-    if not pretrained_base:
-        print('pretrained_base == False')
-        net.initialize()
     return net
 
 def eco_resnet34_v1b(pretrained=False,

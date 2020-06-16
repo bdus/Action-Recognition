@@ -153,8 +153,7 @@ def parse_args():
                         help='number of crops for each image. default is 1')
     parser.add_argument('--input-channel', type=int, default=3,
                         help='number of first conv layer of \'simple\' model')    
-    parser.add_argument('--num-layers', type=int, default=3,
-                        help='number of lstm hidden layer ')        
+    
     opt = parser.parse_args()
     return opt
 
@@ -185,11 +184,11 @@ def get_data_loader(opt, batch_size, num_workers, logger, kvstore=None):
                                   num_segments=opt.num_segments, transform=transform_test)
     elif opt.dataset == 'ucf101':
         train_dataset = UCF101(setting=opt.train_list, root=data_dir, train=True,
-                               new_width=opt.new_width, new_height=opt.new_height, new_length=opt.new_length,
+                               new_width=opt.new_width, new_height=opt.new_height, new_length=opt.new_length+1,
                                target_width=input_size, target_height=input_size,
                                num_segments=opt.num_segments, transform=transform_train)
         val_dataset = UCF101(setting=opt.val_list, root=data_dir, train=False,
-                             new_width=opt.new_width, new_height=opt.new_height, new_length=opt.new_length,
+                             new_width=opt.new_width, new_height=opt.new_height, new_length=opt.new_length+1,
                              target_width=input_size, target_height=input_size,
                              num_segments=opt.num_segments, transform=transform_test)
     elif opt.dataset == 'somethingsomethingv2':
@@ -285,7 +284,7 @@ def main():
     if opt.use_pretrained and len(opt.hashtag) > 0:
         opt.use_pretrained = opt.hashtag
     net = get_model(name=model_name, nclass=classes, pretrained=opt.use_pretrained,
-                    use_tsn=opt.use_tsn, num_segments=opt.num_segments, partial_bn=opt.partial_bn, input_channel=opt.input_channel)#,num_layers=opt.num_layers)
+                    use_tsn=opt.use_tsn, num_segments=opt.num_segments, partial_bn=opt.partial_bn, input_channel=opt.input_channel)
     net.cast(opt.dtype)
     net.collect_params().reset_ctx(context)
     logger.info(net)
@@ -314,6 +313,13 @@ def main():
     acc_top1 = mx.metric.Accuracy()
     acc_top5 = mx.metric.TopKAccuracy(5)
 
+    def get_diff(input_data,new_length=5):
+        assert input_data.shape[3] == new_length+1
+        fron = input_data.slice_axis(axis=3,begin=1,end=new_length+1).copy()
+        last = input_data.slice_axis(axis=3,begin=0,end=new_length)    
+        fron = fron-last 
+        return fron
+    
     def test(ctx, val_data, kvstore=None):
         acc_top1.reset()
         acc_top5.reset()
@@ -325,6 +331,7 @@ def main():
             outputs = []
             for _, X in enumerate(data):
 #                X = X.reshape((-1,) + X.shape[2:])
+                X = get_diff(X,new_length=opt.new_length)
                 X = X.reshape((-3,-3,-2))
                 pred = net(X.astype(opt.dtype, copy=False))
                 outputs.append(pred)
@@ -415,11 +422,12 @@ def main():
                     outputs = []
                     for _, X in enumerate(data):
 #                        X = X.reshape((-1,) + X.shape[2:])
+                        X = get_diff(X,new_length=opt.new_length)
                         X = X.reshape((-3,-3,-2))
                         pred = net(X.astype(opt.dtype, copy=False))
                         outputs.append(pred)
                     loss = [L(yhat, y.astype(opt.dtype, copy=False)) for yhat, y in zip(outputs, label)]
-#                    print(loss)
+
                     if opt.use_amp:
                         with amp.scale_loss(loss, trainer) as scaled_loss:
                             ag.backward(scaled_loss)
@@ -438,8 +446,6 @@ def main():
                     else:
                         trainer.step(batch_size)
 
-#                print(outputs)
-#                print(label)
                 train_metric.update(label, outputs)
                 train_loss_iter = sum([l.mean().asscalar() for l in loss]) / len(loss)
                 train_loss_epoch += train_loss_iter

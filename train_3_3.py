@@ -48,9 +48,9 @@ class AttrDisplay:
 class config(AttrDisplay):
     def __init__(self):
         self.new_length = 1
-        self.model = 'resnet34_v1b_ucf101'
+        self.model = 'eco_resnet34_v1b_k400'
+        self.save_dir = 'logs/param_rgb_eco_resnet34_v1b_k400_ucf101_seg8_scratch_real'
         self.pretrained_base = False
-        self.save_dir = 'logs/param_rgb_resnet34_v1b_ucf101_seg8_scratch_real'
         self.num_classes = 101
         self.new_length_diff = self.new_length +1 
         self.train_dir = os.path.expanduser('~/.mxnet/datasets/ucf101/rawframes')#'/media/hp/mypan/BGSDecom/cv_MOG2/fgs')#
@@ -64,7 +64,7 @@ class config(AttrDisplay):
         self.new_width=340#171#340#171
         self.input_channel=3 
         self.num_segments=8
-        self.num_workers = 2
+        self.num_workers =1
         self.num_gpus = 1
         self.per_device_batch_size = 30
         self.lr = 0.001
@@ -76,10 +76,17 @@ class config(AttrDisplay):
         self.prefetch_ratio = 1.0
         self.use_amp = False
         self.epochs = 80
-        self.lr_decay_epoch = [30,60]
+        self.lr_decay_epoch = [30,60,75]
         self.dtype = 'float32'
+        self.pretrained_ECOfeature3d = '0.7526-eco34k400seg8_feature3d.params'
+        self.pretrained_ECOoutput = '0.7526-eco34k400seg8_output.params'
         self.use_pretrained = False
         self.partial_bn = False
+        self.train_patterns = 'eco*'
+        self.use_train_patterns = False
+        self.freeze_patterns = 'resnet*'
+        self.freeze_lr_mult = 0.1 #set freezed base layer lr = self.lr * self.freeze_lr_mult
+        self.use_mult = False
         self.clip_grad = 40
         self.log_interval = 10
         self.lr_mode = 'step'        
@@ -110,10 +117,21 @@ ctx = [mx.gpu(i) for i in range(num_gpus)]
 net = myget(name=opt.model, nclass=opt.num_classes, num_segments=opt.num_segments,input_channel=opt.input_channel,batch_normal=opt.partial_bn,pretrained_base=opt.pretrained_base)
 net.cast(opt.dtype)
 net.collect_params().reset_ctx(ctx)
+
 #logger.info(net)
 if opt.resume_params is not '':
     net.load_parameters(opt.resume_params, ctx=ctx)
 
+if opt.use_pretrained:
+    net.features_3d.load_parameters(opt.pretrained_ECOfeature3d,ctx=ctx,allow_missing=True)
+    net.output.load_parameters(opt.pretrained_ECOoutput,ctx=ctx,allow_missing=True)
+    logger.info('use pretrained model : %s , %s',opt.pretrained_ECOfeature3d,opt.pretrained_ECOoutput)
+    
+if opt.use_mult:
+    net.collect_params(opt.freeze_patterns).setattr('lr_mult',opt.freeze_lr_mult)
+
+net.collect_params().reset_ctx(ctx)
+    
 transform_train = video.VideoGroupTrainTransform(size=(opt.input_size, opt.input_size), scale_ratios=[1.0, 0.875, 0.75, 0.66], mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 transform_test = video.VideoGroupValTransform(size=opt.input_size, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 
@@ -184,6 +202,9 @@ if opt.partial_bn:
         logger.info('Current model does not support partial batch normalization.')
 
     trainer = gluon.Trainer(net.collect_params(train_patterns), optimizer, optimizer_params, update_on_kvstore=False)
+elif opt.use_train_patterns:
+    trainer = gluon.Trainer(net.collect_params(opt.train_patterns), optimizer, optimizer_params, update_on_kvstore=False)
+    print('trainner.patterns: ', opt.train_patterns)
 else:
     trainer = gluon.Trainer(net.collect_params(), optimizer, optimizer_params, update_on_kvstore=False)
 
@@ -269,9 +290,9 @@ for epoch in range(opt.resume_epoch, opt.epochs):
                     X = X.reshape((-3,-3,-2))
                 else:
                     pass
-                pred = net(X)
+                pred = net(X.astype(opt.dtype, copy=False))
                 output.append(pred)
-            loss = [loss_fn(yhat, y) for yhat, y in zip(output, label)]
+            loss = [loss_fn(yhat, y.astype(opt.dtype, copy=False)) for yhat, y in zip(output, label)]
 
         # Backpropagation
         for l in loss:
@@ -296,6 +317,7 @@ for epoch in range(opt.resume_epoch, opt.epochs):
 
     # Update history and print metrics
     train_history.update([acc,acc_top1_val,acc_top5_val])
+    train_history.plot(save_path=os.path.join(opt.save_dir,'trainlog.jpg'))
     logger.info('[Epoch %d] train=%f loss=%f time: %f' %
         (epoch, acc, train_loss / (i+1), time.time()-tic))
     logger.info('[Epoch %d] val top1 =%f top5=%f val loss=%f,lr=%f' %

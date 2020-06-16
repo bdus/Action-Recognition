@@ -5,9 +5,9 @@ import numpy as np
 from mxnet import nd
 from mxnet.gluon.data import dataset
 
-__all__ = ['UCF101_Bgs']
+__all__ = ['UCF101_2stream']
 
-class UCF101_Bgs(dataset.Dataset):
+class UCF101_2stream(dataset.Dataset):
     """Load the UCF101 video action recognition dataset.
 
     Refer to :doc:`../build/examples_datasets/ucf101` for the description of
@@ -70,9 +70,12 @@ class UCF101_Bgs(dataset.Dataset):
                  video_ext='mp4',
                  is_color=True,
                  modality='rgb',
-                 num_segments=1,
-                 new_length=1,
-                 new_step=1,
+                 num_segments_bgs=1,
+                 num_segments_fgs=1,
+                 new_length_bgs=1,
+                 new_length_fgs=5,
+                 new_step_bgs=1,
+                 new_step_fgs=1,
                  new_width=340,
                  new_height=256,
                  target_width=224,
@@ -82,7 +85,7 @@ class UCF101_Bgs(dataset.Dataset):
                  use_decord=False,
                  transform=None):
 
-        super(UCF101_Bgs, self).__init__()
+        super(UCF101_2stream, self).__init__()
 
         from gluoncv.utils.filesystem import try_import_cv2, try_import_decord, try_import_mmcv
         self.cv2 = try_import_cv2()
@@ -93,16 +96,20 @@ class UCF101_Bgs(dataset.Dataset):
         self.test_mode = test_mode
         self.is_color = is_color
         self.modality = modality
-        self.num_segments = num_segments
+        self.num_segments_bgs = num_segments_bgs
+        self.num_segments_fgs = num_segments_fgs
         self.new_height = new_height
         self.new_width = new_width
-        self.new_length = new_length
-        self.new_step = new_step
-        self.skip_length = self.new_length * self.new_step
+        self.new_length_fgs = new_length_fgs
+        self.new_length_bgs = new_length_bgs
+        self.new_step_bgs = new_step_bgs
+        self.new_step_fgs = new_step_fgs
+        self.skip_length_bgs = self.new_length_bgs * self.new_step_bgs
+        self.skip_length_fgs = self.new_length_fgs * self.new_step_fgs
         self.target_height = target_height
         self.target_width = target_width
         self.transform = transform
-        self.temporal_jitter = temporal_jitter
+        self.temporal_jitter = temporal_jitter # False
         self.video_loader = video_loader
         self.video_ext = video_ext
         self.use_decord = use_decord
@@ -138,12 +145,23 @@ class UCF101_Bgs(dataset.Dataset):
 #                mmcv_vr = self.mmcv.VideoReader('{}.{}'.format(directory, self.video_ext))
 #                duration = len(mmcv_vr)
 
+        # if self.train and not self.test_mode:
+        #     segment_indices, skip_offsets = self._sample_train_indices(duration)
+        # elif not self.train and not self.test_mode:
+        #     segment_indices, skip_offsets = self._sample_val_indices(duration)
+        # else:
+        #     segment_indices, skip_offsets = self._sample_test_indices(duration)
+            
         if self.train and not self.test_mode:
-            segment_indices, skip_offsets = self._sample_train_indices(duration)
+            segment_indices_bgs, skip_offsets_bgs = self._sample_train_indices_bfgs(duration,Bgs=True)
+            segment_indices_fgs, skip_offsets_fgs = self._sample_train_indices_bfgs(duration,Bgs=False)
         elif not self.train and not self.test_mode:
-            segment_indices, skip_offsets = self._sample_val_indices(duration)
+            segment_indices_bgs, skip_offsets_bgs = self._sample_val_indices_bfgs(duration, Bgs=True)
+            segment_indices_fgs, skip_offsets_fgs = self._sample_val_indices_bfgs(duration, Bgs=False)
         else:
-            segment_indices, skip_offsets = self._sample_test_indices(duration)
+            segment_indices_bgs, skip_offsets_bgs = self._sample_test_indices_bfgs(duration, Bgs=True)
+            segment_indices_fgs, skip_offsets_fgs = self._sample_test_indices_bfgs(duration, Bgs=False)
+         
 
         # N frames of shape H x W x C, where N = num_oversample * num_segments * new_length
         if self.video_loader:
@@ -153,8 +171,10 @@ class UCF101_Bgs(dataset.Dataset):
 #            else:
 #                clip_input = self._video_TSN_mmcv_loader(directory, mmcv_vr, duration, segment_indices, skip_offsets)
         else:
-            clip_input_bgs = self._image_TSN_cv2_loader(directory_bgs, duration, segment_indices, skip_offsets)
-            clip_input_fgs = self._image_TSN_cv2_loader(directory_fgs, duration, segment_indices, skip_offsets)
+            #clip_input_bgs = self._image_TSN_cv2_loader(directory_bgs, duration, segment_indices_bgs, skip_offsets_bgs)
+            clip_input_bgs = self._image_TSN_cv2_loader_bfgs(directory_bgs, duration, segment_indices_bgs, skip_offsets_bgs, Bgs=True)
+            #clip_input_fgs = self._image_TSN_cv2_loader(directory_fgs, duration, segment_indices_fgs, skip_offsets_fgs)
+            clip_input_fgs = self._image_TSN_cv2_loader_bfgs(directory_fgs, duration, segment_indices_fgs, skip_offsets_fgs, Bgs=False)
 #            clip_input = self._image_TSN_cv2_loader(directory, duration, segment_indices, skip_offsets)
 
         if self.transform is not None:
@@ -162,15 +182,17 @@ class UCF101_Bgs(dataset.Dataset):
             clip_input_fgs = self.transform(clip_input_fgs)
 
         clip_input_bgs = np.stack(clip_input_bgs, axis=0)
-        clip_input_bgs = clip_input_bgs.reshape((-1,) + (self.new_length, 3, self.target_height, self.target_width))
+        clip_input_bgs = clip_input_bgs.reshape((-1,) + (self.new_length_bgs, 3, self.target_height, self.target_width))
         clip_input_bgs = np.transpose(clip_input_bgs, (0, 2, 1, 3, 4))
 
         clip_input_fgs = np.stack(clip_input_fgs, axis=0)
-        clip_input_fgs = clip_input_fgs.reshape((-1,) + (self.new_length, 3, self.target_height, self.target_width))
+        clip_input_fgs = clip_input_fgs.reshape((-1,) + (self.new_length_fgs, 3, self.target_height, self.target_width))
         clip_input_fgs = np.transpose(clip_input_fgs, (0, 2, 1, 3, 4))
 
-        if self.new_length == 1:
+        if self.new_length_bgs == 1:
             clip_input_bgs = np.squeeze(clip_input_bgs, axis=2)    # this is for 2D input case
+
+        if self.new_length_fgs == 1:
             clip_input_fgs = np.squeeze(clip_input_fgs, axis=2)    # this is for 2D input case
 
         return nd.array(clip_input_bgs), nd.array(clip_input_fgs), target
@@ -203,62 +225,165 @@ class UCF101_Bgs(dataset.Dataset):
                 clips.append(item)
         return clips
 
-    def _sample_train_indices(self, num_frames):
-        average_duration = (num_frames - self.skip_length + 1) // self.num_segments
+
+
+    def _sample_train_indices_bfgs(self, num_frames, Bgs=True):
+        fnum_segments = self.num_segments_bgs if Bgs else self.num_segments_fgs
+        fskip_length = self.skip_length_bgs if Bgs else self.skip_length_fgs
+        fnew_step = self.new_step_bgs if Bgs else self.new_step_fgs
+        
+        
+        average_duration = (num_frames - fskip_length + 1) // fnum_segments
         if average_duration > 0:
-            offsets = np.multiply(list(range(self.num_segments)),
+            offsets = np.multiply(list(range(fnum_segments)),
                                   average_duration)
             offsets = offsets + np.random.randint(average_duration,
-                                                  size=self.num_segments)
-        elif num_frames > max(self.num_segments, self.skip_length):
+                                                  size=fnum_segments)
+        elif num_frames > max(fnum_segments, fskip_length):
             offsets = np.sort(np.random.randint(
-                num_frames - self.skip_length + 1,
-                size=self.num_segments))
+                num_frames - fskip_length + 1,
+                size=fnum_segments))
         else:
-            offsets = np.zeros((self.num_segments,))
+            offsets = np.zeros((fnum_segments,))
 
         if self.temporal_jitter:
             skip_offsets = np.random.randint(
                 self.new_step, size=self.skip_length // self.new_step)
         else:
             skip_offsets = np.zeros(
-                self.skip_length // self.new_step, dtype=int)
+                fskip_length // fnew_step, dtype=int)
         return offsets + 1, skip_offsets
 
-    def _sample_val_indices(self, num_frames):
-        if num_frames > self.num_segments + self.skip_length - 1:
-            tick = (num_frames - self.skip_length + 1) / \
-                float(self.num_segments)
+
+    def _sample_val_indices_bfgs(self, num_frames, Bgs=True):
+        fnum_segments = self.num_segments_bgs if Bgs else self.num_segments_fgs
+        fskip_length = self.skip_length_bgs if Bgs else self.skip_length_fgs
+        fnew_step = self.new_step_bgs if Bgs else self.new_step_fgs
+        
+        if num_frames > fnum_segments + fskip_length - 1:
+            tick = (num_frames - fskip_length + 1) / \
+                float(fnum_segments)
             offsets = np.array([int(tick / 2.0 + tick * x)
-                                for x in range(self.num_segments)])
+                                for x in range(fnum_segments)])
         else:
-            offsets = np.zeros((self.num_segments,))
+            offsets = np.zeros((fnum_segments,))
 
         if self.temporal_jitter:
             skip_offsets = np.random.randint(
                 self.new_step, size=self.skip_length // self.new_step)
         else:
             skip_offsets = np.zeros(
-                self.skip_length // self.new_step, dtype=int)
+                fskip_length // fnew_step, dtype=int)
         return offsets + 1, skip_offsets
 
-    def _sample_test_indices(self, num_frames):
-        if num_frames > self.skip_length - 1:
-            tick = (num_frames - self.skip_length + 1) / \
-                float(self.num_segments)
+
+
+    def _sample_test_indices_bfgs(self, num_frames,  Bgs=True):
+        fnum_segments = self.num_segments_bgs if Bgs else self.num_segments_fgs
+        fskip_length = self.skip_length_bgs if Bgs else self.skip_length_fgs
+        fnew_step = self.new_step_bgs if Bgs else self.new_step_fgs
+        
+        if num_frames > fskip_length - 1:
+            tick = (num_frames - fskip_length + 1) / \
+                float(fnum_segments)
             offsets = np.array([int(tick / 2.0 + tick * x)
-                                for x in range(self.num_segments)])
+                                for x in range(fnum_segments)])
         else:
-            offsets = np.zeros((self.num_segments,))
+            offsets = np.zeros((fnum_segments,))
 
         if self.temporal_jitter:
             skip_offsets = np.random.randint(
                 self.new_step, size=self.skip_length // self.new_step)
         else:
             skip_offsets = np.zeros(
-                self.skip_length // self.new_step, dtype=int)
+                fskip_length // fnew_step, dtype=int)
         return offsets + 1, skip_offsets
 
+
+    # def _sample_train_indices(self, num_frames):
+    #     average_duration = (num_frames - self.skip_length + 1) // self.num_segments
+    #     if average_duration > 0:
+    #         offsets = np.multiply(list(range(self.num_segments)),
+    #                               average_duration)
+    #         offsets = offsets + np.random.randint(average_duration,
+    #                                               size=self.num_segments)
+    #     elif num_frames > max(self.num_segments, self.skip_length):
+    #         offsets = np.sort(np.random.randint(
+    #             num_frames - self.skip_length + 1,
+    #             size=self.num_segments))
+    #     else:
+    #         offsets = np.zeros((self.num_segments,))
+
+    #     if self.temporal_jitter:
+    #         skip_offsets = np.random.randint(
+    #             self.new_step, size=self.skip_length // self.new_step)
+    #     else:
+    #         skip_offsets = np.zeros(
+    #             self.skip_length // self.new_step, dtype=int)
+    #     return offsets + 1, skip_offsets
+
+
+    # def _sample_val_indices(self, num_frames):
+    #     if num_frames > self.num_segments + self.skip_length - 1:
+    #         tick = (num_frames - self.skip_length + 1) / \
+    #             float(self.num_segments)
+    #         offsets = np.array([int(tick / 2.0 + tick * x)
+    #                             for x in range(self.num_segments)])
+    #     else:
+    #         offsets = np.zeros((self.num_segments,))
+
+    #     if self.temporal_jitter:
+    #         skip_offsets = np.random.randint(
+    #             self.new_step, size=self.skip_length // self.new_step)
+    #     else:
+    #         skip_offsets = np.zeros(
+    #             self.skip_length // self.new_step, dtype=int)
+    #     return offsets + 1, skip_offsets
+
+
+    # def _sample_test_indices(self, num_frames):
+    #     if num_frames > self.skip_length - 1:
+    #         tick = (num_frames - self.skip_length + 1) / \
+    #             float(self.num_segments)
+    #         offsets = np.array([int(tick / 2.0 + tick * x)
+    #                             for x in range(self.num_segments)])
+    #     else:
+    #         offsets = np.zeros((self.num_segments,))
+
+    #     if self.temporal_jitter:
+    #         skip_offsets = np.random.randint(
+    #             self.new_step, size=self.skip_length // self.new_step)
+    #     else:
+    #         skip_offsets = np.zeros(
+    #             self.skip_length // self.new_step, dtype=int)
+    #     return offsets + 1, skip_offsets
+
+    def _image_TSN_cv2_loader_bfgs(self, directory, duration, indices, skip_offsets,Bgs=True):
+        fnum_segments = self.num_segments_bgs if Bgs else self.num_segments_fgs
+        fskip_length = self.skip_length_bgs if Bgs else self.skip_length_fgs
+        fnew_step = self.new_step_bgs if Bgs else self.new_step_fgs
+        
+        sampled_list = []
+        for seg_ind in indices:
+            offset = int(seg_ind)
+            for i, _ in enumerate(range(0, fskip_length, fnew_step)):
+                if offset + skip_offsets[i] <= duration:
+                    frame_path = os.path.join(directory, self.name_pattern % (offset + skip_offsets[i]))
+                else:
+                    frame_path = os.path.join(directory, self.name_pattern % (offset))
+                cv_img = self.cv2.imread(frame_path)
+                if cv_img is None:
+                    raise(RuntimeError("Could not load file %s starting at frame %d. Check data path." % (frame_path, offset)))
+                if self.new_width > 0 and self.new_height > 0:
+                    h, w, _ = cv_img.shape
+                    if h != self.new_height or w != self.new_width:
+                        cv_img = self.cv2.resize(cv_img, (self.new_width, self.new_height))
+                cv_img = cv_img[:, :, ::-1]
+                sampled_list.append(cv_img)
+                if offset + fnew_step < duration:
+                    offset += fnew_step
+        return sampled_list
+    
     def _image_TSN_cv2_loader(self, directory, duration, indices, skip_offsets):
         sampled_list = []
         for seg_ind in indices:
@@ -280,6 +405,8 @@ class UCF101_Bgs(dataset.Dataset):
                 if offset + self.new_step < duration:
                     offset += self.new_step
         return sampled_list
+
+    
 
     def _video_TSN_mmcv_loader(self, directory, video_reader, duration, indices, skip_offsets):
         sampled_list = []

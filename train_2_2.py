@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on 2020-1-19 00:05:43
+Created on 2020年3月6日18:52:46
 
 @author: bdus
 
+(5,3,16,112,112)
 
 """
 from __future__ import division
@@ -47,10 +48,10 @@ class AttrDisplay:
 
 class config(AttrDisplay):
     def __init__(self):
-        self.new_length = 1
-        self.model = 'resnet34_v1b_ucf101'
-        self.pretrained_base = False
-        self.save_dir = 'logs/param_rgb_resnet34_v1b_ucf101_seg8_scratch_real'
+        self.new_length = 16
+        self.new_step = 2
+        self.model = 'c3d_kinetics400_custome'
+        self.save_dir = 'logs/param_rgb_c3d_kinetics400_custome_nlength16'
         self.num_classes = 101
         self.new_length_diff = self.new_length +1 
         self.train_dir = os.path.expanduser('~/.mxnet/datasets/ucf101/rawframes')#'/media/hp/mypan/BGSDecom/cv_MOG2/fgs')#
@@ -59,12 +60,12 @@ class config(AttrDisplay):
         self.logging_file = 'train.log'
         self.name_pattern='img_%05d.jpg'
         self.dataset = 'ucf101'
-        self.input_size=224#112#204#112
-        self.new_height=256#128#256#128
-        self.new_width=340#171#340#171
+        self.input_size=112#204#112
+        self.new_height=128#256#128
+        self.new_width=171#340#171
         self.input_channel=3 
-        self.num_segments=8
-        self.num_workers = 2
+        self.num_segments= 1
+        self.num_workers =1
         self.num_gpus = 1
         self.per_device_batch_size = 30
         self.lr = 0.001
@@ -75,18 +76,25 @@ class config(AttrDisplay):
         self.wd = 0.0005        
         self.prefetch_ratio = 1.0
         self.use_amp = False
-        self.epochs = 80
-        self.lr_decay_epoch = [30,60]
+        self.epochs = 65
+        self.lr_decay_epoch = [20,40,60]
         self.dtype = 'float32'
+        self.pretrained_ECOfeature3d = '0.7526-eco34k400seg8_feature3d.params'
+        self.pretrained_ECOoutput = '0.7526-eco34k400seg8_output.params'
         self.use_pretrained = False
         self.partial_bn = False
+        self.train_patterns = 'mx_c3d_base*'
+        self.use_train_patterns = False
+        self.freeze_patterns = ''
+        self.freeze_lr_mult = 0.01 #set freezed base layer lr = self.lr * self.freeze_lr_mult
+        self.use_mult = False
         self.clip_grad = 40
         self.log_interval = 10
         self.lr_mode = 'step'        
         self.resume_epoch = 0
         self.resume_params = ''#os.path.join('logs/param_rgb_resnet18_v1b_k400_ucf101','0.8620-ucf101-resnet18_v1b_k400_ucf101-082-best.params')
         self.resume_states = ''#os.path.join('logs/param_rgb_resnet18_v1b_k400_ucf101','0.8620-ucf101-resnet18_v1b_k400_ucf101-082-best.states')
-        self.reshape_type = 'tsn' # c3d tsn tsn_newlength
+        self.reshape_type = 'tsn' #mxc3d c3d tsn tsn_newlength
       
 
 opt = config()
@@ -107,13 +115,25 @@ ctx = [mx.gpu(i) for i in range(num_gpus)]
 #ctx = [mx.gpu(1)]
 
 # Get the model 
-net = myget(name=opt.model, nclass=opt.num_classes, num_segments=opt.num_segments,input_channel=opt.input_channel,batch_normal=opt.partial_bn,pretrained_base=opt.pretrained_base)
+net = myget(name=opt.model, nclass=opt.num_classes, num_segments=opt.num_segments,input_channel=opt.input_channel,batch_normal=opt.partial_bn)
 net.cast(opt.dtype)
 net.collect_params().reset_ctx(ctx)
+
 #logger.info(net)
 if opt.resume_params is not '':
     net.load_parameters(opt.resume_params, ctx=ctx)
 
+if opt.use_pretrained:
+    net.features_3d.load_parameters(opt.pretrained_ECOfeature3d,ctx=ctx,allow_missing=True)
+    net.output.load_parameters(opt.pretrained_ECOoutput,ctx=ctx,allow_missing=True)
+    logger.info('use pretrained model : %s , %s',opt.pretrained_ECOfeature3d,opt.pretrained_ECOoutput)
+    
+if opt.use_mult:
+    net.collect_params(opt.freeze_patterns).setattr('lr_mult',opt.freeze_lr_mult)
+
+logger.info(net)
+net.collect_params().reset_ctx(ctx)
+    
 transform_train = video.VideoGroupTrainTransform(size=(opt.input_size, opt.input_size), scale_ratios=[1.0, 0.875, 0.75, 0.66], mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 transform_test = video.VideoGroupValTransform(size=opt.input_size, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 
@@ -129,11 +149,11 @@ batch_size = per_device_batch_size * num_gpus
 # The subset has 101 training samples, one sample per class.
 
 train_dataset = UCF101(setting=opt.train_setting, root=opt.train_dir, train=True,
-                       new_width=opt.new_width, new_height=opt.new_height, new_length=opt.new_length,
+                       new_width=opt.new_width, new_height=opt.new_height, new_length=opt.new_length,new_step=opt.new_step,
                        target_width=opt.input_size, target_height=opt.input_size,
                        num_segments=opt.num_segments, transform=transform_train)
 val_dataset = UCF101(setting=opt.val_setting, root=opt.train_dir, train=False,
-                     new_width=opt.new_width, new_height=opt.new_height, new_length=opt.new_length,
+                     new_width=opt.new_width, new_height=opt.new_height, new_length=opt.new_length,new_step=opt.new_step,
                      target_width=opt.input_size, target_height=opt.input_size,
                      num_segments=opt.num_segments, transform=transform_test)
 
@@ -184,6 +204,10 @@ if opt.partial_bn:
         logger.info('Current model does not support partial batch normalization.')
 
     trainer = gluon.Trainer(net.collect_params(train_patterns), optimizer, optimizer_params, update_on_kvstore=False)
+elif opt.partial_bn == False and opt.use_train_patterns == True:
+    trainer = gluon.Trainer(net.collect_params(opt.train_patterns), optimizer, optimizer_params, update_on_kvstore=False)
+    logger.info('trainner.patterns: %s.' % opt.train_patterns )
+    logger.info('========\n %s' % net.collect_params(opt.train_patterns) )
 else:
     trainer = gluon.Trainer(net.collect_params(), optimizer, optimizer_params, update_on_kvstore=False)
 
@@ -224,10 +248,10 @@ def test(ctx,val_data):
                 X = X.reshape((-3,-3,-2))
             else:
                 pass
-            pred = net(X)
+            pred = net(X.astype(opt.dtype, copy=False))
             val_outputs.append(pred)
             
-        loss = [L(yhat, y) for yhat, y in zip(val_outputs, label)]
+        loss = [L(yhat, y.astype(opt.dtype, copy=False)) for yhat, y in zip(val_outputs, label)]
         
         acc_top1.update(label, val_outputs)
         acc_top5.update(label, val_outputs)
@@ -263,15 +287,15 @@ for epoch in range(opt.resume_epoch, opt.epochs):
             for _, X in enumerate(data):
                 if opt.reshape_type == 'tsn':
                     X = X.reshape((-1,) + X.shape[2:])
-                elif opt.reshape_type == 'c3d' or '3d' in opt.model:
+                elif opt.reshape_type == 'c3d':                    
                     X = nd.transpose(data=X,axes=(0,2,1,3,4))
                 elif opt.new_length != 1 and opt.reshape_type == 'tsn_newlength':
                     X = X.reshape((-3,-3,-2))
                 else:
                     pass
-                pred = net(X)
+                pred = net(X.astype(opt.dtype, copy=False))
                 output.append(pred)
-            loss = [loss_fn(yhat, y) for yhat, y in zip(output, label)]
+            loss = [loss_fn(yhat, y.astype(opt.dtype, copy=False)) for yhat, y in zip(output, label)]
 
         # Backpropagation
         for l in loss:

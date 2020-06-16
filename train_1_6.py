@@ -2,9 +2,11 @@
 # -*- coding: utf-8 -*-
 """
 Created on 2020-1-19 00:05:43
+2020-5-13 12:58:53
 
 @author: bdus
 
+hmdb51
 
 """
 from __future__ import division
@@ -47,23 +49,27 @@ class AttrDisplay:
 
 class config(AttrDisplay):
     def __init__(self):
-        self.new_length = 1
-        self.model = 'resnet34_v1b_ucf101'
-        self.pretrained_base = False
-        self.save_dir = 'logs/param_rgb_resnet34_v1b_ucf101_seg8_scratch_real'
-        self.num_classes = 101
+        self.new_length = 32
+        self.new_step = 2
+        self.model = 'i3d_resnet50_v1_ucf101'#'resnet34_v1b_k400_ucf101'
+        self.pretrained_base = True#sFalse
+        self.save_dir = 'logs/param_rgb_i3d_resnet50_v1_ucf101_seg1nl32ns2'
         self.new_length_diff = self.new_length +1 
         self.train_dir = os.path.expanduser('~/.mxnet/datasets/ucf101/rawframes')#'/media/hp/mypan/BGSDecom/cv_MOG2/fgs')#
         self.train_setting = '/home/hp/.mxnet/datasets/ucf101/ucfTrainTestlist/ucf101_train_split_1_rawframes.txt'
         self.val_setting = '/home/hp/.mxnet/datasets/ucf101/ucfTrainTestlist/ucf101_val_split_1_rawframes.txt'
+        self.train_dir_hmdb51 = os.path.expanduser('~/.mxnet/datasets/hmdb51/rawframes')#'/media/hp/8tB/BGSDecom_hmdb51/cv_MOG2/fgs'
+        self.train_setting_hmdb51 = '/home/hp/.mxnet/datasets/hmdb51/testTrainMulti_7030_splits/hmdb51_train_split_1_rawframes.txt'
+        self.val_setting_hmdb51 = '/home/hp/.mxnet/datasets/hmdb51/testTrainMulti_7030_splits/hmdb51_val_split_1_rawframes.txt'		
         self.logging_file = 'train.log'
         self.name_pattern='img_%05d.jpg'
-        self.dataset = 'ucf101'
+        self.dataset = 'ucf101' #'hmdb51'
+        self.num_classes = 101 if self.dataset == 'ucf101' else 51
         self.input_size=224#112#204#112
         self.new_height=256#128#256#128
         self.new_width=340#171#340#171
         self.input_channel=3 
-        self.num_segments=8
+        self.num_segments=1
         self.num_workers = 2
         self.num_gpus = 1
         self.per_device_batch_size = 30
@@ -84,7 +90,7 @@ class config(AttrDisplay):
         self.log_interval = 10
         self.lr_mode = 'step'        
         self.resume_epoch = 0
-        self.resume_params = ''#os.path.join('logs/param_rgb_resnet18_v1b_k400_ucf101','0.8620-ucf101-resnet18_v1b_k400_ucf101-082-best.params')
+        self.resume_params = ''#os.path.join('logs/param_rgb_resnet34_v1b_k400_ucf101_seg8','0.9212-ucf101-resnet34_v1b_k400_ucf101-010-best.params')
         self.resume_states = ''#os.path.join('logs/param_rgb_resnet18_v1b_k400_ucf101','0.8620-ucf101-resnet18_v1b_k400_ucf101-082-best.states')
         self.reshape_type = 'tsn' # c3d tsn tsn_newlength
       
@@ -128,14 +134,26 @@ batch_size = per_device_batch_size * num_gpus
 # Set train=True for training data. Here we only use a subset of UCF101 for demonstration purpose.
 # The subset has 101 training samples, one sample per class.
 
-train_dataset = UCF101(setting=opt.train_setting, root=opt.train_dir, train=True,
-                       new_width=opt.new_width, new_height=opt.new_height, new_length=opt.new_length,
+if opt.dataset == 'ucf101':
+    train_dataset = UCF101(setting=opt.train_setting, root=opt.train_dir, train=True,
+                       new_width=opt.new_width, new_height=opt.new_height, new_length=opt.new_length,new_step=opt.new_step,
                        target_width=opt.input_size, target_height=opt.input_size,
                        num_segments=opt.num_segments, transform=transform_train)
-val_dataset = UCF101(setting=opt.val_setting, root=opt.train_dir, train=False,
-                     new_width=opt.new_width, new_height=opt.new_height, new_length=opt.new_length,
+    val_dataset = UCF101(setting=opt.val_setting, root=opt.train_dir, train=False,
+                     new_width=opt.new_width, new_height=opt.new_height, new_length=opt.new_length,new_step=opt.new_step,
                      target_width=opt.input_size, target_height=opt.input_size,
                      num_segments=opt.num_segments, transform=transform_test)
+elif opt.dataset == 'hmdb51':
+    train_dataset = HMDB51(setting=opt.train_setting_hmdb51, root=opt.train_dir_hmdb51, train=True,
+           new_width=opt.new_width, new_height=opt.new_height, new_length=opt.new_length, new_step=opt.new_step,
+           target_width=opt.input_size, target_height=opt.input_size, 
+           num_segments=opt.num_segments, transform=transform_train)
+    val_dataset = HMDB51(setting=opt.val_setting_hmdb51, root=opt.train_dir_hmdb51, train=False,
+           new_width=opt.new_width, new_height=opt.new_height, new_length=opt.new_length, new_step=opt.new_step,
+           target_width=opt.input_size, target_height=opt.input_size, 
+           num_segments=opt.num_segments, transform=transform_test)
+else:
+    logger.info('Dataset %s is not supported yet.' % (opt.dataset))
 
 
 train_data = gluon.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers,

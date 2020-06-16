@@ -7,7 +7,81 @@ Created on 2020-2-4 19:58:30
 
 https://gluon-cv.mxnet.io/build/examples_action_recognition/dive_deep_ucf101.html#start-training-now
 
-测试单个模型用
+第一个实验测试 比较
+
+20 batch size 1 GPU
+
+resnet18_v1b_ucf101  param_rgb_resnet18_v1b_ucf101  0.7505-ucf101-resnet18_v1b_ucf101-085-best.params
+val top1 =0.750463 top5=0.939730 val loss=0.910375 time = 19.721219
+val top1 =0.750463 top5=0.939730 val loss=0.910375 time = 19.850660
+val top1 =0.750463 top5=0.939730 val loss=0.910375 time = 19.212582
+time per clip : 0.506932
+
+
+resnet18_v1b_k400_ucf101 param_rgb_resnet18_v1b_k400_ucf101 0.8620-ucf101-resnet18_v1b_k400_ucf101-082-best.
+val top1 =0.813376 top5=0.952154 val loss=0.738654 time = 19.535844
+val top1 =0.813376 top5=0.952154 val loss=0.738654 time = 19.611750
+val top1 =0.813376 top5=0.952154 val loss=0.738654 time = 19.054030
+time per clip : 0.502749
+
+
+resnet34_v1b_ucf101 param_rgb_resnet34_v1b_ucf101_seg8 0.8655-ucf101-resnet34_v1b_ucf101-059-best.params
+val top1 =0.808882 top5=0.954533 val loss=0.743578 time = 20.120073
+val top1 =0.808882 top5=0.954533 val loss=0.743578 time = 19.229614
+val top1 =0.808882 top5=0.954533 val loss=0.743578 time = 18.905875
+time per clip : 0.498842
+
+
+resnet34_v1b_k400_ucf101 param_rgb_resnet34_v1b_k400_ucf101_seg8 0.9212-ucf101-resnet34_v1b_k400_ucf101-010-best
+val top1 =0.855670 top5=0.974623 val loss=0.541763 time = 20.033465
+val top1 =0.855670 top5=0.974623 val loss=0.541763 time = 20.089865
+val top1 =0.855670 top5=0.974623 val loss=0.541763 time = 19.186008
+time per clip : 0.506231
+
+resnet50_v1b_ucf101 param_rgb_resnet50_v1b_ucf101_seg8 0.8736-ucf101-resnet50_v1b_ucf101-026-best.params
+val top1 =0.813640 top5=0.948454 val loss=0.872196 time = 18.741732
+val top1 =0.813640 top5=0.948454 val loss=0.872196 time = 18.691594
+val top1 =0.813640 top5=0.948454 val loss=0.872196 time = 19.068352
+time per clip : 0.503126
+
+resnet50_v1b_k400_ucf101 param_rgb_resnet50_v1b_k400_ucf101_seg8 0.9244-ucf101-resnet50_v1b_k400_ucf101-024-best
+val top1 =0.868358 top5=0.970394 val loss=0.584157 time = 18.496983
+val top1 =0.868358 top5=0.970394 val loss=0.584157 time = 19.506078
+val top1 =0.868358 top5=0.970394 val loss=0.584157 time = 18.517787
+time per clip : 0.488600
+
+resnet101_v1b_k400_ucf101 param_rgb_resnet101_v1b_k400_ucf101_seg8 0.9344-ucf101-resnet101_v1b_k400_ucf101-021-best
+val top1 =0.867565 top5=0.971187 val loss=0.721035 time = 18.768587
+val top1 =0.867565 top5=0.971187 val loss=0.721035 time = 19.044027
+
+val top1 =0.867565 top5=0.971187 val loss=0.721035 time = 18.717636
+val top1 =0.867565 top5=0.971187 val loss=0.721035 time = 20.150343
+val top1 =0.867565 top5=0.971187 val loss=0.721035 time = 19.247428
+time per clip : 0.507852
+
+resnet152_v1b_k400_ucf101 param_rgb_resnet152_v1b_k400_ucf101_seg8 0.9292-ucf101-resnet152_v1b_k400_ucf101-025-best
+val top1 =0.857785 top5=0.963521 val loss=0.878501 time = 23.915603
+val top1 =0.857785 top5=0.963521 val loss=0.878501 time = 24.255287
+
+val top1 =0.857785 top5=0.963521 val loss=0.878501 time = 23.940408
+val top1 =0.857785 top5=0.963521 val loss=0.878501 time = 24.047341
+val top1 =0.857785 top5=0.963521 val loss=0.878501 time = 24.073693
+time per clip : 0.635194
+
+pretrained
+
+resnet34_v1b_ucf101     param_rgb_resnet34_v1b_ucf101_seg8  0.8641-ucf101-resnet34_v1b_ucf101-014-best.params
+resnet34_v1b_k400_ucf101     param_rgb_resnet34_v1b_k400_ucf101_seg8     0.9165-ucf101-resnet34_v1b_k400_ucf101-006-best.params
+
+
+
+resnet34_v1b_k400_ucf101 param_rgb_resnet34_v1b_ucf101_seg8_scratch_real 0.4475-ucf101-resnet34_v1b_ucf101-051-best.params
+seg=1
+val top1 =0.392546 top5=0.666402 val loss=2.942931 time = 19.610184
+val top1 =0.392546 top5=0.666402 val loss=2.942931 time = 18.966630
+val top1 =0.392546 top5=0.666402 val loss=2.942931 time = 18.700061
+time per clip : 0.493409
+seg=8
 
 """
 from __future__ import division
@@ -50,12 +124,11 @@ class AttrDisplay:
 
 class config(AttrDisplay):
     def __init__(self):
-        self.new_length = 32
-        self.new_step = 2
-        self.model = 'i3d_resnet50_v1_ucf101'#resnet18_v1b_ucf101'
-        self.save_dir = 'logs/test4'
-        self.model_file = ''#'logs/param_rgb_resnet18_v1b_ucf101'
-        self.resume_params = ''#os.path.join(self.model_file,'0.7505-ucf101-resnet18_v1b_ucf101-085-best.params')
+        self.new_length = 1
+        self.model = 'resnet34_v1b_k400_ucf101'
+        self.save_dir = 'logs/test1'
+        self.model_file = 'logs/param_rgb_resnet34_v1b_ucf101_seg8_scratch_real'
+        self.resume_params = os.path.join(self.model_file,'0.4475-ucf101-resnet34_v1b_ucf101-051-best.params')
         self.num_classes = 101
         self.new_length_diff = self.new_length +1 
         self.train_dir = os.path.expanduser('~/.mxnet/datasets/ucf101/rawframes')#'/media/hp/mypan/BGSDecom/cv_MOG2/fgs')#
@@ -64,14 +137,14 @@ class config(AttrDisplay):
         self.logging_file = 'train.log'
         self.name_pattern='img_%05d.jpg'
         self.dataset = 'ucf101'
-        self.input_size=224#112#204#112
-        self.new_height=256#128#256#128
-        self.new_width=340#171#340#171
+        self.input_size=224#224#112#204#112
+        self.new_height=256#256#128#256#128
+        self.new_width=340#340#171#340#171
         self.input_channel=3 
-        self.num_segments=1
+        self.num_segments=8
         self.num_workers = 1
         self.num_gpus = 1
-        self.per_device_batch_size = 40
+        self.per_device_batch_size = 10
         self.lr = 0.01
         self.lr_decay = 0.1
         self.warmup_lr = 0
@@ -83,7 +156,7 @@ class config(AttrDisplay):
         self.epochs = 100
         self.lr_decay_epoch = [30,60,80]
         self.dtype = 'float32'
-        self.use_pretrained = True
+        self.use_pretrained = False
         self.partial_bn = True
         self.clip_grad = 40
         self.log_interval = 10
@@ -110,7 +183,7 @@ ctx = [mx.gpu(i) for i in range(num_gpus)]
 #ctx = [mx.gpu(1)]
 
 # Get the model 
-net = myget(name=opt.model, nclass=opt.num_classes, num_segments=opt.num_segments,input_channel=opt.input_channel,batch_normal=opt.partial_bn,pretrained=opt.use_pretrained)
+net = myget(name=opt.model, nclass=opt.num_classes, num_segments=opt.num_segments,input_channel=opt.input_channel,batch_normal=opt.partial_bn)
 net.cast(opt.dtype)
 net.collect_params().reset_ctx(ctx)
 #logger.info(net)
@@ -135,13 +208,14 @@ batch_size = per_device_batch_size * num_gpus
                       # new_width=opt.new_width, new_height=opt.new_height, new_length=opt.new_length,
                       # target_width=opt.input_size, target_height=opt.input_size,
                       # num_segments=opt.num_segments, transform=transform_train)
-
 val_dataset = UCF101(setting=opt.val_setting, root=opt.train_dir, train=False,test_mode=True,
-                     new_width=opt.new_width, new_height=opt.new_height, new_length=opt.new_length, new_step=opt.new_step,
+                     new_width=opt.new_width, new_height=opt.new_height, new_length=opt.new_length,
                      target_width=opt.input_size, target_height=opt.input_size,
                      num_segments=opt.num_segments, transform=transform_test)
 
 
+#train_data = gluon.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers,
+                                   #prefetch=int(opt.prefetch_ratio * num_workers), last_batch='rollover')
 val_data = gluon.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers,
                                  prefetch=int(opt.prefetch_ratio * num_workers), last_batch='discard')
 
@@ -179,15 +253,20 @@ acc_top1 = mx.metric.Accuracy()
 acc_top5 = mx.metric.TopKAccuracy(5)
 
 
+#perclip_time = []
+
+
+
 def test(ctx,val_data):
     acc_top1.reset()
-    acc_top5.reset()
+    acc_top5.reset()    
     L = gluon.loss.SoftmaxCrossEntropyLoss()
     num_test_iter = len(val_data)
     val_loss_epoch = 0
+      
     for i, batch in enumerate(val_data):
         data, label = batch_fn(batch, ctx)
-        
+        #tic = time.time()
         val_outputs = []
         for _, X in enumerate(data):
             if opt.reshape_type == 'tsn':
@@ -200,7 +279,7 @@ def test(ctx,val_data):
                 pass
             pred = net(X)
             val_outputs.append(pred)
-            
+        #perclip_time.append( time.time() - tic )
         loss = [L(yhat, y) for yhat, y in zip(val_outputs, label)]
         
         acc_top1.update(label, val_outputs)
@@ -216,7 +295,21 @@ def test(ctx,val_data):
 
 # training 
 
+
+tic = time.time()
 acc_top1_val, acc_top5_val, loss_val = test(ctx, val_data)
-logger.info('val top1 =%f top5=%f val loss=%f' %
-        (acc_top1_val, acc_top5_val, loss_val ))
+logger.info('val top1 =%f top5=%f val loss=%f time = %f ' %
+        (acc_top1_val, acc_top5_val, loss_val,   time.time() - tic)) #np.mean(perclip_time)/opt.per_device_batch_size ))
+
+tic = time.time()
+acc_top1_val, acc_top5_val, loss_val = test(ctx, val_data)
+logger.info('val top1 =%f top5=%f val loss=%f time = %f ' %
+        (acc_top1_val, acc_top5_val, loss_val,   time.time() - tic)) #np.mean(perclip_time)/opt.per_device_batch_size ))
+       
+tic = time.time()
+acc_top1_val, acc_top5_val, loss_val = test(ctx, val_data)
+logger.info('val top1 =%f top5=%f val loss=%f time = %f ' %
+        (acc_top1_val, acc_top5_val, loss_val,   time.time() - tic)) #np.mean(perclip_time)/opt.per_device_batch_size ))        
+
+logger.info('time per clip : %f ' % ((time.time() - tic)* batch_size / len(val_data) ) )        
 print('done.')

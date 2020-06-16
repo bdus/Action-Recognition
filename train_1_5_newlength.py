@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on 2020-1-19 00:05:43
+Created on 2020-1-31 22:16:29
 
 @author: bdus
 
+https://gluon-cv.mxnet.io/build/examples_action_recognition/dive_deep_ucf101.html#start-training-now
 
 """
 from __future__ import division
@@ -47,13 +48,12 @@ class AttrDisplay:
 
 class config(AttrDisplay):
     def __init__(self):
-        self.new_length = 1
-        self.model = 'resnet34_v1b_ucf101'
-        self.pretrained_base = False
-        self.save_dir = 'logs/param_rgb_resnet34_v1b_ucf101_seg8_scratch_real'
+        self.new_length = 5
+        self.model = 'resnet34_v1b_k400_ucf101'
+        self.save_dir = 'logs/param_cvMOG2_resnet34_v1b_k400_ucf101_seg8_1'
         self.num_classes = 101
         self.new_length_diff = self.new_length +1 
-        self.train_dir = os.path.expanduser('~/.mxnet/datasets/ucf101/rawframes')#'/media/hp/mypan/BGSDecom/cv_MOG2/fgs')#
+        self.train_dir = os.path.expanduser('/media/hp/mypan/BGSDecom/cv_MOG2/fgs')#'~/.mxnet/datasets/ucf101/rawframes')
         self.train_setting = '/home/hp/.mxnet/datasets/ucf101/ucfTrainTestlist/ucf101_train_split_1_rawframes.txt'
         self.val_setting = '/home/hp/.mxnet/datasets/ucf101/ucfTrainTestlist/ucf101_val_split_1_rawframes.txt'
         self.logging_file = 'train.log'
@@ -62,12 +62,12 @@ class config(AttrDisplay):
         self.input_size=224#112#204#112
         self.new_height=256#128#256#128
         self.new_width=340#171#340#171
-        self.input_channel=3 
+        self.input_channel=15 #3
         self.num_segments=8
-        self.num_workers = 2
+        self.num_workers = 1
         self.num_gpus = 1
-        self.per_device_batch_size = 30
-        self.lr = 0.001
+        self.per_device_batch_size = 25
+        self.lr = 0.01
         self.lr_decay = 0.1
         self.warmup_lr = 0
         self.warmup_epochs = 0
@@ -75,18 +75,18 @@ class config(AttrDisplay):
         self.wd = 0.0005        
         self.prefetch_ratio = 1.0
         self.use_amp = False
-        self.epochs = 80
-        self.lr_decay_epoch = [30,60]
+        self.epochs = 65
+        self.lr_decay_epoch = [30,40,60]
         self.dtype = 'float32'
         self.use_pretrained = False
         self.partial_bn = False
-        self.clip_grad = 40
+        self.clip_grad = 10
         self.log_interval = 10
         self.lr_mode = 'step'        
         self.resume_epoch = 0
-        self.resume_params = ''#os.path.join('logs/param_rgb_resnet18_v1b_k400_ucf101','0.8620-ucf101-resnet18_v1b_k400_ucf101-082-best.params')
-        self.resume_states = ''#os.path.join('logs/param_rgb_resnet18_v1b_k400_ucf101','0.8620-ucf101-resnet18_v1b_k400_ucf101-082-best.states')
-        self.reshape_type = 'tsn' # c3d tsn tsn_newlength
+        self.resume_params = ''#os.path.join(self.save_dir,'0.6823-ucf101-eco_resnet18_v2-034-best.params')
+        self.resume_states = ''#os.path.join(self.save_dir,'0.6823-ucf101-eco_resnet18_v2-034-best.states')
+        self.reshape_type = 'tsn_newlength'#'tsn' # c3d tsn tsn_newlength
       
 
 opt = config()
@@ -107,7 +107,7 @@ ctx = [mx.gpu(i) for i in range(num_gpus)]
 #ctx = [mx.gpu(1)]
 
 # Get the model 
-net = myget(name=opt.model, nclass=opt.num_classes, num_segments=opt.num_segments,input_channel=opt.input_channel,batch_normal=opt.partial_bn,pretrained_base=opt.pretrained_base)
+net = myget(name=opt.model, nclass=opt.num_classes, num_segments=opt.num_segments,input_channel=opt.input_channel,batch_normal=opt.partial_bn)
 net.cast(opt.dtype)
 net.collect_params().reset_ctx(ctx)
 #logger.info(net)
@@ -215,15 +215,15 @@ def test(ctx,val_data):
         data, label = batch_fn(batch, ctx)
 
         val_outputs = []
-        for _, X in enumerate(data):
+        for _, X in enumerate(data):            
             if opt.reshape_type == 'tsn':
                 X = X.reshape((-1,) + X.shape[2:])
             elif opt.reshape_type == 'c3d':
                 X = nd.transpose(data=X,axes=(0,2,1,3,4))
             elif opt.new_length != 1 and opt.reshape_type == 'tsn_newlength':
-                X = X.reshape((-3,-3,-2))
+                X = X.reshape((-3,-3,-2))                
             else:
-                pass
+                pass            
             pred = net(X)
             val_outputs.append(pred)
             
@@ -261,6 +261,7 @@ for epoch in range(opt.resume_epoch, opt.epochs):
         with ag.record():
             output = []
             for _, X in enumerate(data):
+                #print('====================================',X.shape)
                 if opt.reshape_type == 'tsn':
                     X = X.reshape((-1,) + X.shape[2:])
                 elif opt.reshape_type == 'c3d' or '3d' in opt.model:
@@ -269,6 +270,7 @@ for epoch in range(opt.resume_epoch, opt.epochs):
                     X = X.reshape((-3,-3,-2))
                 else:
                     pass
+                #print('========= =====================',X.shape)
                 pred = net(X)
                 output.append(pred)
             loss = [loss_fn(yhat, y) for yhat, y in zip(output, label)]

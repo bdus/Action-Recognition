@@ -1,4 +1,9 @@
 # pylint: disable=line-too-long,too-many-lines,missing-docstring,arguments-differ,unused-argument
+"""
+2020年06月16日15:38:10
+基于LSTM的没有训练起来 
+
+"""
 import mxnet as mx
 from mxnet import init
 from mxnet.gluon import nn

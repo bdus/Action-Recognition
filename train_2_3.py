@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on 2020-1-19 00:05:43
+Created on 2020-2-6 14:12:37
 
 @author: bdus
 
+https://gluon-cv.mxnet.io/build/examples_action_recognition/dive_deep_ucf101.html#start-training-now
+
+训练两个模型用
+分别导入两个模型和参数文件，然后max mean
+
+直接合并的
 
 """
 from __future__ import division
@@ -28,6 +34,10 @@ from gluoncv.data import UCF101, Kinetics400, SomethingSomethingV2, HMDB51
 from gluoncv.utils import makedirs, LRSequential, LRScheduler, split_and_load, TrainingHistory
 
 from model_zoo import get_model as myget
+from ucf101_bgs.classification import UCF101_Bgs 
+#from DualBlock_fc import DualBlock,get_dualnet
+from DualBlock import DualBlock,get_dualnet
+
 
 class AttrDisplay:
   def gatherAttrs(self):
@@ -48,12 +58,19 @@ class AttrDisplay:
 class config(AttrDisplay):
     def __init__(self):
         self.new_length = 1
-        self.model = 'resnet34_v1b_ucf101'
-        self.pretrained_base = False
-        self.save_dir = 'logs/param_rgb_resnet34_v1b_ucf101_seg8_scratch_real'
+        self.fusion_method = 'avg'
+        self.bgsmodel = 'resnet18_v1b_k400_ucf101'
+        self.fgsmodel = 'eco_resnet18_v1b_k400_ucf101'
+        self.model = self.bgsmodel,self.fgsmodel
+        self.save_dir = 'logs/bfgs_RGBcvMOG2_ucf101_2'
+        self.bgs_path = 'logs/param_rgb_resnet18_v1b_k400_ucf101_1'
+        self.fgs_path = 'logs/param_cvMOG2_eco_resnet18_v1b_k400_ucf101_2'
+        self.bgs_params = os.path.join(self.bgs_path,'0.8258-ucf101-resnet18_v1b_k400_ucf101-048-best.params')
+        self.fgs_params = os.path.join(self.fgs_path,'0.5919-ucf101-eco_resnet18_v1b_k400_ucf101-062-best.params')
         self.num_classes = 101
         self.new_length_diff = self.new_length +1 
-        self.train_dir = os.path.expanduser('~/.mxnet/datasets/ucf101/rawframes')#'/media/hp/mypan/BGSDecom/cv_MOG2/fgs')#
+        self.root_bgs = os.path.expanduser('~/.mxnet/datasets/ucf101/rawframes')
+        self.root_fgs = os.path.expanduser('/media/hp/mypan/BGSDecom/cv_MOG2/fgs')#'~/.mxnet/datasets/ucf101/rawframes')
         self.train_setting = '/home/hp/.mxnet/datasets/ucf101/ucfTrainTestlist/ucf101_train_split_1_rawframes.txt'
         self.val_setting = '/home/hp/.mxnet/datasets/ucf101/ucfTrainTestlist/ucf101_val_split_1_rawframes.txt'
         self.logging_file = 'train.log'
@@ -66,8 +83,8 @@ class config(AttrDisplay):
         self.num_segments=8
         self.num_workers = 2
         self.num_gpus = 1
-        self.per_device_batch_size = 30
-        self.lr = 0.001
+        self.per_device_batch_size = 20
+        self.lr = 0.01
         self.lr_decay = 0.1
         self.warmup_lr = 0
         self.warmup_epochs = 0
@@ -75,18 +92,18 @@ class config(AttrDisplay):
         self.wd = 0.0005        
         self.prefetch_ratio = 1.0
         self.use_amp = False
-        self.epochs = 80
-        self.lr_decay_epoch = [30,60]
+        self.epochs = 85
+        self.lr_decay_epoch = [30,60,80]
         self.dtype = 'float32'
         self.use_pretrained = False
         self.partial_bn = False
         self.clip_grad = 40
         self.log_interval = 10
         self.lr_mode = 'step'        
-        self.resume_epoch = 0
-        self.resume_params = ''#os.path.join('logs/param_rgb_resnet18_v1b_k400_ucf101','0.8620-ucf101-resnet18_v1b_k400_ucf101-082-best.params')
-        self.resume_states = ''#os.path.join('logs/param_rgb_resnet18_v1b_k400_ucf101','0.8620-ucf101-resnet18_v1b_k400_ucf101-082-best.states')
+        self.resume_epoch = 1
         self.reshape_type = 'tsn' # c3d tsn tsn_newlength
+        self.resume_states = ''
+        self.resume_params = ''
       
 
 opt = config()
@@ -107,12 +124,11 @@ ctx = [mx.gpu(i) for i in range(num_gpus)]
 #ctx = [mx.gpu(1)]
 
 # Get the model 
-net = myget(name=opt.model, nclass=opt.num_classes, num_segments=opt.num_segments,input_channel=opt.input_channel,batch_normal=opt.partial_bn,pretrained_base=opt.pretrained_base)
+net = get_dualnet(fgs_model=opt.fgsmodel,bgs_model=opt.bgsmodel,fgs_path=opt.fgs_params,bgs_path=opt.bgs_params, nclass=opt.num_classes, num_segments=opt.num_segments,input_channel=opt.input_channel,fusion_method=opt.fusion_method)
 net.cast(opt.dtype)
 net.collect_params().reset_ctx(ctx)
 #logger.info(net)
-if opt.resume_params is not '':
-    net.load_parameters(opt.resume_params, ctx=ctx)
+
 
 transform_train = video.VideoGroupTrainTransform(size=(opt.input_size, opt.input_size), scale_ratios=[1.0, 0.875, 0.75, 0.66], mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 transform_test = video.VideoGroupValTransform(size=opt.input_size, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
@@ -128,32 +144,35 @@ batch_size = per_device_batch_size * num_gpus
 # Set train=True for training data. Here we only use a subset of UCF101 for demonstration purpose.
 # The subset has 101 training samples, one sample per class.
 
-train_dataset = UCF101(setting=opt.train_setting, root=opt.train_dir, train=True,
-                       new_width=opt.new_width, new_height=opt.new_height, new_length=opt.new_length,
-                       target_width=opt.input_size, target_height=opt.input_size,
-                       num_segments=opt.num_segments, transform=transform_train)
-val_dataset = UCF101(setting=opt.val_setting, root=opt.train_dir, train=False,
-                     new_width=opt.new_width, new_height=opt.new_height, new_length=opt.new_length,
-                     target_width=opt.input_size, target_height=opt.input_size,
-                     num_segments=opt.num_segments, transform=transform_test)
+train_dataset = UCF101_Bgs(train=True, num_segments=opt.num_segments, transform=transform_train,
+                                             root_bgs=opt.root_bgs,
+                                             root_fgs=opt.root_fgs,
+                                             setting=opt.train_setting,
+                                             name_pattern=opt.name_pattern,
+                           new_width=opt.new_width,new_height=opt.new_height, new_length=opt.new_length,
+                           target_width=opt.input_size, target_height=opt.input_size
+                                             )
 
+val_dataset = UCF101_Bgs(train=False, num_segments=opt.num_segments, transform=transform_train,
+                                             root_bgs=opt.root_bgs,
+                                             root_fgs=opt.root_fgs,
+                                             setting=opt.val_setting,
+                                             name_pattern=opt.name_pattern,
+                         new_width=opt.new_width,new_height=opt.new_height, new_length=opt.new_length,
+                           target_width=opt.input_size, target_height=opt.input_size
+                                             )
 
 train_data = gluon.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers,
                                    prefetch=int(opt.prefetch_ratio * num_workers), last_batch='rollover')
 val_data = gluon.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers,
                                  prefetch=int(opt.prefetch_ratio * num_workers), last_batch='discard')
-
-
-train_data = gluon.data.DataLoader(train_dataset, batch_size=batch_size,
-                                   shuffle=True, num_workers=num_workers)
 logger.info('Load %d training samples.' % len(train_dataset))
-val_data = gluon.data.DataLoader(val_dataset, batch_size=batch_size,
-                                   shuffle=False, num_workers=num_workers)
-    
-def batch_fn(batch, ctx):
-    data = split_and_load(batch[0], ctx_list=ctx, batch_axis=0, even_split=False)
-    label = split_and_load(batch[1], ctx_list=ctx, batch_axis=0, even_split=False)
-    return data, label
+#def batch_fn(batch, ctx):
+#    data = split_and_load(batch[0], ctx_list=ctx, batch_axis=0, even_split=False)
+#    label = split_and_load(batch[1], ctx_list=ctx, batch_axis=0, even_split=False)
+#    return data, label
+
+
 # Learning rate decay factor
 lr_decay = opt.lr_decay
 # Epochs where learning rate decays
@@ -190,6 +209,7 @@ else:
 if opt.resume_states is not '':
     trainer.load_states(opt.resume_states)
 
+
 # Define our trainer for net
 #trainer = gluon.Trainer(net.collect_params(), optimizer, optimizer_params)
 
@@ -212,19 +232,18 @@ def test(ctx,val_data):
     num_test_iter = len(val_data)
     val_loss_epoch = 0
     for i, batch in enumerate(val_data):
-        data, label = batch_fn(batch, ctx)
-
+        data_bgs = split_and_load(batch[0], ctx_list=ctx, batch_axis=0)
+        data_fgs = split_and_load(batch[1], ctx_list=ctx, batch_axis=0)
+        label = split_and_load(batch[2], ctx_list=ctx, batch_axis=0)
         val_outputs = []
-        for _, X in enumerate(data):
-            if opt.reshape_type == 'tsn':
-                X = X.reshape((-1,) + X.shape[2:])
-            elif opt.reshape_type == 'c3d':
-                X = nd.transpose(data=X,axes=(0,2,1,3,4))
-            elif opt.new_length != 1 and opt.reshape_type == 'tsn_newlength':
-                X = X.reshape((-3,-3,-2))
-            else:
-                pass
-            pred = net(X)
+        for _, (X_bgs,X_fgs) in enumerate(zip(data_bgs,data_fgs)):
+            #print('X_bgs',X_bgs.shape) # (10, 8, 3, 224, 224)
+            #print('X_fgs',X_fgs.shape) # (10, 8, 3, 224, 224)
+            X_bgs = X_bgs.reshape((-1,) + X_bgs.shape[2:])
+            X_fgs = X_fgs.reshape((-1,) + X_fgs.shape[2:])
+            #print('X_bgs',X_bgs.shape) #(80, 3, 224, 224)
+            #print('X_fgs',X_fgs.shape) #(80, 3, 224, 224)
+            pred = net(X_bgs,X_fgs)
             val_outputs.append(pred)
             
         loss = [L(yhat, y) for yhat, y in zip(val_outputs, label)]
@@ -239,6 +258,7 @@ def test(ctx,val_data):
     val_loss = val_loss_epoch / num_test_iter
     
     return (top1, top5, val_loss)
+
 
 # training 
 
@@ -256,20 +276,27 @@ for epoch in range(opt.resume_epoch, opt.epochs):
     # Loop through each batch of training data
     for i, batch in enumerate(train_data):
         # Extract data and label
-        data, label = batch_fn(batch, ctx)
+        data_bgs = split_and_load(batch[0], ctx_list=ctx, batch_axis=0)
+        data_fgs = split_and_load(batch[1], ctx_list=ctx, batch_axis=0)
+        label = split_and_load(batch[2], ctx_list=ctx, batch_axis=0)
         # AutoGrad
         with ag.record():
             output = []
-            for _, X in enumerate(data):
+            for _, (X_bgs,X_fgs) in enumerate(zip(data_bgs,data_fgs)):
                 if opt.reshape_type == 'tsn':
-                    X = X.reshape((-1,) + X.shape[2:])
+                    X_bgs = X_bgs.reshape((-1,) + X_bgs.shape[2:])
+                    X_fgs = X_fgs.reshape((-1,) + X_fgs.shape[2:])
                 elif opt.reshape_type == 'c3d' or '3d' in opt.model:
-                    X = nd.transpose(data=X,axes=(0,2,1,3,4))
+                    X_bgs = nd.transpose(data=X_bgs,axes=(0,2,1,3,4))
+                    X_fgs = nd.transpose(data=X_fgs,axes=(0,2,1,3,4))
+                    #X = nd.transpose(data=X,axes=(0,2,1,3,4))
                 elif opt.new_length != 1 and opt.reshape_type == 'tsn_newlength':
-                    X = X.reshape((-3,-3,-2))
+                    #X = X.reshape((-3,-3,-2))
+                    X_bgs = X_bgs.reshape((-3,-3,-2))
+                    X_fgs = X_fgs.reshape((-3,-3,-2))
                 else:
                     pass
-                pred = net(X)
+                pred = net(X_bgs,X_fgs)
                 output.append(pred)
             loss = [loss_fn(yhat, y) for yhat, y in zip(output, label)]
 

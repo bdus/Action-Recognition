@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on 2020-2-4 19:58:30
+Created on 2020-2-4 19:58:30 2020年3月2日14:53:36
 
 @author: bdus
 
@@ -10,12 +10,69 @@ https://gluon-cv.mxnet.io/build/examples_action_recognition/dive_deep_ucf101.htm
 测试两个模型用
 分别导入两个模型和参数文件，然后max mean
 
+resnet34_v1b_ucf101 param_rgb_resnet34_v1b_ucf101_seg8 0.8655-ucf101-resnet34_v1b_ucf101-059-best.params
+resnet34_v1b_k400_ucf101 param_rgb_resnet34_v1b_k400_ucf101_seg8 0.9212-ucf101-resnet34_v1b_k400_ucf101-010-best
+
+
+resnet34_v1b_k400_ucf101 param_cvMOG2_resnet34_v1b_k400_ucf101_seg8  0.6178-ucf101-resnet34_v1b_k400_ucf101-054-best
+
+imagenet
+seg=1
+val top1 =0.755405 top5=0.930541 val loss=0.905163 time = 56.943942
+val top1 =0.755405 top5=0.930541 val loss=0.905163 time = 17.028004
+val top1 =0.755405 top5=0.930541 val loss=0.905163 time = 17.048095
+done.
+seg16
+val top1 =0.852116 top5=0.964815 val loss=0.534640 time = 259.290843
+val top1 =0.852116 top5=0.964815 val loss=0.534640 time = 258.373130
+val top1 =0.852116 top5=0.964815 val loss=0.534640 time = 259.765228
+done.
+
+
+k400
+seg1
+val top1 =0.786772 top5=0.938624 val loss=0.788636 time = 18.362909
+val top1 =0.786772 top5=0.938624 val loss=0.788636 time = 17.855403
+val top1 =0.786772 top5=0.938624 val loss=0.788636 time = 17.434568
+done.
+seg=16
+val top1 =0.890212 top5=0.980159 val loss=0.417256 time = 261.250653
+val top1 =0.890212 top5=0.980159 val loss=0.417256 time = 263.182225
+val top1 =0.890212 top5=0.980159 val loss=0.417256 time = 260.857275
+done.
+seg8
+val top1 =0.882804 top5=0.980423 val loss=0.431342 time = 331.013417
+val top1 =0.882804 top5=0.980423 val loss=0.431342 time = 139.658914
+val top1 =0.882804 top5=0.980423 val loss=0.431342 time = 138.303504
+done.
+seg4
+val top1 =0.877249 top5=0.975661 val loss=0.455060 time = 236.635324
+val top1 =0.877249 top5=0.975661 val loss=0.455060 time = 68.848208
+val top1 =0.877249 top5=0.975661 val loss=0.455060 time = 67.900019
+done.
+
+
+
+
+k=4
+
+opt.fusion_method :  bgs
+val top1 =0.914595 top5=0.990270 val loss=0.315720 time = 219.335953
+opt.fusion_method :  fgs
+val top1 =0.582973 top5=0.827027 val loss=1.727975 time = 66.478450
+opt.fusion_method :  avg
+val top1 =0.876486 top5=0.975405 val loss=0.456596 time = 66.391539
+done.
+
+
+
+
 """
 from __future__ import division
 
 import argparse, time, logging, os, sys, math
 os.environ['MXNET_CUDNN_AUTOTUNE_DEFAULT']='0'
-os.environ['CUDA_VISIBLE_DEVICES']='0' #0,1
+os.environ['CUDA_VISIBLE_DEVICES']='1' #0,1
 
 import numpy as np
 import mxnet as mx
@@ -54,14 +111,14 @@ class AttrDisplay:
 class config(AttrDisplay):
     def __init__(self):
         self.new_length = 1
-        self.fusion_method = 'bgs'
-        self.bgsmodel = 'resnet18_v1b_k400_ucf101'
-        self.fgsmodel = 'resnet18_v1b_k400_ucf101'
-        self.save_dir = 'logs/test'
-        self.bgs_path = 'logs/param_rgb_resnet18_v1b_ucf101'#param_rgb_resnet18_v1b_k400_ucf101_1'
-        self.fgs_path = 'logs/param_cv_MOG2_resnet18_v1b_ucf101_seg8'
-        self.bgs_params = os.path.join(self.bgs_path,'0.7505-ucf101-resnet18_v1b_ucf101-085-best.params')
-        self.fgs_params = os.path.join(self.fgs_path,'0.6122-ucf101-resnet18_v1b_k400_ucf101-098-best.params')
+        self.fusion_method = 'avg'# avg max bgs fgs
+        self.bgsmodel = 'resnet34_v1b_k400_ucf101'
+        self.fgsmodel = 'resnet34_v1b_k400_ucf101'
+        self.save_dir = 'logs/test3'
+        self.bgs_path = 'logs/param_rgb_resnet34_v1b_k400_ucf101_seg8'#param_rgb_resnet18_v1b_k400_ucf101_1'
+        self.fgs_path = 'logs/param_cvMOG2_resnet34_v1b_k400_ucf101_seg8'
+        self.bgs_params = os.path.join(self.bgs_path,'0.9212-ucf101-resnet34_v1b_k400_ucf101-010-best.params')
+        self.fgs_params = os.path.join(self.fgs_path,'0.6178-ucf101-resnet34_v1b_k400_ucf101-054-best.params')
         self.num_classes = 101
         self.new_length_diff = self.new_length +1 
         self.root_bgs = os.path.expanduser('~/.mxnet/datasets/ucf101/rawframes')
@@ -75,10 +132,10 @@ class config(AttrDisplay):
         self.new_height=256#128#256#128
         self.new_width=340#171#340#171
         self.input_channel=3 
-        self.num_segments=2
+        self.num_segments=4
         self.num_workers = 2
         self.num_gpus = 1
-        self.per_device_batch_size = 10
+        self.per_device_batch_size = 100
         self.lr = 0.01
         self.lr_decay = 0.1
         self.warmup_lr = 0
@@ -117,11 +174,18 @@ ctx = [mx.gpu(i) for i in range(num_gpus)]
 #ctx = [mx.gpu(1)]
 
 # Get the model 
-net = get_dualnet(fgs_model=opt.fgsmodel,bgs_model=opt.bgsmodel,fgs_path=opt.fgs_params,bgs_path=opt.bgs_params, nclass=opt.num_classes, num_segments=opt.num_segments,input_channel=opt.input_channel,fusion_method=opt.fusion_method)
-net.cast(opt.dtype)
-net.collect_params().reset_ctx(ctx)
+#net = get_dualnet(fgs_model=opt.fgsmodel,bgs_model=opt.bgsmodel,fgs_path=opt.fgs_params,bgs_path=opt.bgs_params, nclass=opt.num_classes, num_segments=opt.num_segments,input_channel=opt.input_channel,fusion_method=opt.fusion_method)
+net_bgs = myget(name=opt.bgsmodel, nclass=opt.num_classes, num_segments=opt.num_segments,input_channel=opt.input_channel,batch_normal=opt.partial_bn)
+net_fgs = myget(name=opt.fgsmodel, nclass=opt.num_classes, num_segments=opt.num_segments,input_channel=opt.input_channel,batch_normal=opt.partial_bn)
+net_bgs.cast(opt.dtype)
+net_bgs.collect_params().reset_ctx(ctx)
+net_fgs.cast(opt.dtype)
+net_fgs.collect_params().reset_ctx(ctx)
 #logger.info(net)
-
+if opt.bgs_params is not '':
+    net_bgs.load_parameters(opt.bgs_params, ctx=ctx)
+if opt.fgs_params is not '':
+    net_fgs.load_parameters(opt.fgs_params, ctx=ctx)
 
 transform_train = video.VideoGroupTrainTransform(size=(opt.input_size, opt.input_size), scale_ratios=[1.0, 0.875, 0.75, 0.66], mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 transform_test = video.VideoGroupValTransform(size=opt.input_size, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
@@ -169,6 +233,7 @@ best_val_score = 0
 acc_top1 = mx.metric.Accuracy()
 acc_top5 = mx.metric.TopKAccuracy(5)
 
+
 def test(ctx,val_data):
     acc_top1.reset()
     acc_top5.reset()
@@ -187,7 +252,22 @@ def test(ctx,val_data):
             X_fgs = X_fgs.reshape((-1,) + X_fgs.shape[2:])
             #print('X_bgs',X_bgs.shape) #(80, 3, 224, 224)
             #print('X_fgs',X_fgs.shape) #(80, 3, 224, 224)
-            pred = net(X_bgs,X_fgs)
+            x_bgs = net_bgs(X_bgs)
+            x_fgs = net_fgs(X_fgs)            
+            if opt.fusion_method == 'avg':
+                x = nd.stack(x_bgs,x_fgs) 
+                x = nd.mean(x, axis=0)                          
+            elif opt.fusion_method == 'max':
+                x = nd.stack(x_bgs,x_fgs) 
+                x = nd.max(x,axis=0)
+            elif opt.fusion_method == 'bgs':
+                x = x_bgs
+            elif opt.fusion_method == 'fgs':
+                x = x_fgs
+            else:
+                raise ValueError('fusion_method not supported')
+            pred=x                        
+            #pred = net(X_bgs,X_fgs)
             val_outputs.append(pred)
             
         loss = [L(yhat, y) for yhat, y in zip(val_outputs, label)]
@@ -206,7 +286,52 @@ def test(ctx,val_data):
 
 # training 
 
+#acc_top1_val, acc_top5_val, loss_val = test(ctx, val_data)
+#logger.info('val top1 =%f top5=%f val loss=%f' %
+ #       (acc_top1_val, acc_top5_val, loss_val ))
+
+# tic = time.time()
+# acc_top1_val, acc_top5_val, loss_val = test(ctx, val_data)
+# logger.info('val top1 =%f top5=%f val loss=%f time = %f ' %
+#         (acc_top1_val, acc_top5_val, loss_val,   time.time() - tic)) #np.mean(perclip_time)/opt.per_device_batch_size ))
+
+# tic = time.time()
+# acc_top1_val, acc_top5_val, loss_val = test(ctx, val_data)
+# logger.info('val top1 =%f top5=%f val loss=%f time = %f ' %
+#         (acc_top1_val, acc_top5_val, loss_val,   time.time() - tic)) #np.mean(perclip_time)/opt.per_device_batch_size ))
+       
+# tic = time.time()
+# acc_top1_val, acc_top5_val, loss_val = test(ctx, val_data)
+# logger.info('val top1 =%f top5=%f val loss=%f time = %f ' %
+#         (acc_top1_val, acc_top5_val, loss_val,   time.time() - tic)) #np.mean(perclip_time)/opt.per_device_batch_size ))        
+
+
+
+opt.fusion_method = 'bgs'
+print('opt.fusion_method : ',opt.fusion_method)
+
+tic = time.time()
 acc_top1_val, acc_top5_val, loss_val = test(ctx, val_data)
-logger.info('val top1 =%f top5=%f val loss=%f' %
-        (acc_top1_val, acc_top5_val, loss_val ))
+logger.info('val top1 =%f top5=%f val loss=%f time = %f ' %
+        (acc_top1_val, acc_top5_val, loss_val,   time.time() - tic)) #np.mean(perclip_time)/opt.per_device_batch_size ))
+
+
+opt.fusion_method = 'fgs'
+print('opt.fusion_method : ',opt.fusion_method)
+       
+tic = time.time()
+acc_top1_val, acc_top5_val, loss_val = test(ctx, val_data)
+logger.info('val top1 =%f top5=%f val loss=%f time = %f ' %
+        (acc_top1_val, acc_top5_val, loss_val,   time.time() - tic)) #np.mean(perclip_time)/opt.per_device_batch_size )) 
+
+opt.fusion_method = 'avg'
+print('opt.fusion_method : ',opt.fusion_method)
+
+tic = time.time()
+acc_top1_val, acc_top5_val, loss_val = test(ctx, val_data)
+logger.info('val top1 =%f top5=%f val loss=%f time = %f ' %
+        (acc_top1_val, acc_top5_val, loss_val,   time.time() - tic)) #np.mean(perclip_time)/opt.per_device_batch_size ))
+
+
+
 print('done.')

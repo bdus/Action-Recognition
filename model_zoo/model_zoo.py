@@ -20,7 +20,12 @@ from .F_stCN import *
 from .R21D import *
 from .ECO import *
 from .resnet18_v1b_ucf101 import *
-
+#from .DualBlock import *
+from .mx_c3d import *
+from .r2plus1d import *
+from .mx_c3d_base import *
+from .r2plus1d_base import *
+from .mx_i3d_resnet import *
 
 __all__ = ['get_model', 'get_model_list']
 
@@ -43,7 +48,42 @@ _models = {
     'eco_resnet18_v1b':eco_resnet18_v1b,
     'resnet18_v1b_ucf101':resnet18_v1b_ucf101,
     'eco_resnet18_v1b_k400':eco_resnet18_v1b_k400,
-    'resnet18_v1b_k400_ucf101':resnet18_v1b_k400_ucf101
+    'eco_resnet18_v1b_k400_ucf101':eco_resnet18_v1b_k400_ucf101,
+    'resnet18_v1b_k400_ucf101':resnet18_v1b_k400_ucf101,
+    'resnet34_v1b_ucf101':resnet34_v1b_ucf101,
+    'resnet50_v1b_ucf101':resnet50_v1b_ucf101,
+    'resnet101_v1b_ucf101':resnet101_v1b_ucf101,
+    'resnet152_v1b_ucf101':resnet152_v1b_ucf101,
+    'resnet34_v1b_k400_ucf101':resnet34_v1b_k400_ucf101,
+    'resnet50_v1b_k400_ucf101':resnet50_v1b_k400_ucf101,
+    'resnet101_v1b_k400_ucf101':resnet101_v1b_k400_ucf101,
+    'resnet152_v1b_k400_ucf101':resnet152_v1b_k400_ucf101,
+    'eco_resnet34_v1b':eco_resnet34_v1b,
+    'eco_resnet34_v1b_k400':eco_resnet34_v1b_k400,
+    'eco_resnet50_v1b':eco_resnet50_v1b,
+    'eco_resnet50_v1b_k400':eco_resnet50_v1b_k400,
+    'eco_resnet101_v1b':eco_resnet101_v1b,
+    'eco_resnet101_v1b_k400':eco_resnet101_v1b_k400,
+    'eco_resnet152_v1b':eco_resnet152_v1b,
+    'eco_resnet152_v1b_k400':eco_resnet152_v1b_k400,
+    'c3d_kinetics400':c3d_kinetics400, 
+    'r2plus1d_resnet18_kinetics400':r2plus1d_resnet18_kinetics400, 
+    'r2plus1d_resnet34_kinetics400':r2plus1d_resnet34_kinetics400,
+    'r2plus1d_resnet50_kinetics400':r2plus1d_resnet50_kinetics400,
+    'r2plus1d_resnet101_kinetics400':r2plus1d_resnet101_kinetics400,
+    'r2plus1d_resnet152_kinetics400':r2plus1d_resnet152_kinetics400,
+    'c3d_kinetics400_ucf101':c3d_kinetics400_ucf101,
+    'r2plus1d_resnet18_kinetics400_custom':r2plus1d_resnet18_kinetics400_custom,
+    'r2plus1d_resnet34_kinetics400_custom':r2plus1d_resnet34_kinetics400_custom,
+    'c3d_kinetics400_custome':c3d_kinetics400_custome,
+    'r2plus1d_resnet34_tranconv_lateral':r2plus1d_resnet34_tranconv_lateral,
+    'r2plus1d_resnet34_tranconv_lateral_tanhbn':r2plus1d_resnet34_tranconv_lateral_tanhbn,
+    'r2plus1d_resnet18_aetfc':r2plus1d_resnet18_aetfc,
+    'i3d_resnet50_v1_kinetics400':i3d_resnet50_v1_kinetics400,
+    'i3d_resnet101_v1_kinetics400':i3d_resnet101_v1_kinetics400,
+    'i3d_resnet50_v1_ucf101':i3d_resnet50_v1_ucf101,
+    #'i3d_resnet50_v1_custom':i3d_resnet50_v1_custom,
+    'i3d_resnet50_v1_hmdb51':i3d_resnet50_v1_hmdb51
     }
 
 def get_model(name, **kwargs):

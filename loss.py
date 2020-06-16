@@ -5,7 +5,7 @@ Created on Thu Nov  7 20:58:33 2019
 
 @author: bdus
 
-define a new loss
+TODO : define a new loss
 
 """
 

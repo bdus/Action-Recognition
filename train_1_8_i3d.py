@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on 2020-1-19 00:05:43
+Created on 2020-1-31 22:16:29
+2020年05月30日15:27:18
 
 @author: bdus
+
+I3D训练
+CVMOG2
 
 
 """
@@ -11,7 +15,7 @@ from __future__ import division
 
 import argparse, time, logging, os, sys, math
 os.environ['MXNET_CUDNN_AUTOTUNE_DEFAULT']='0'
-os.environ['CUDA_VISIBLE_DEVICES']='1' #0,1
+os.environ['CUDA_VISIBLE_DEVICES']='0,1'
 
 import numpy as np
 import mxnet as mx
@@ -47,27 +51,31 @@ class AttrDisplay:
 
 class config(AttrDisplay):
     def __init__(self):
-        self.new_length = 1
-        self.model = 'resnet34_v1b_ucf101'
-        self.pretrained_base = False
-        self.save_dir = 'logs/param_rgb_resnet34_v1b_ucf101_seg8_scratch_real'
-        self.num_classes = 101
+        self.new_length = 32
+        self.pretrained_base = True			
+        self.new_step = 2
+        self.model = 'i3d_resnet50_v1_ucf101'
+        self.save_dir = 'logs/param_cvMOG2_i3d_resnet50_v1_ucf101_seg1nl32ns2'
         self.new_length_diff = self.new_length +1 
-        self.train_dir = os.path.expanduser('~/.mxnet/datasets/ucf101/rawframes')#'/media/hp/mypan/BGSDecom/cv_MOG2/fgs')#
+        self.train_dir = os.path.expanduser('/media/hp/mypan/BGSDecom/cv_MOG2/fgs')#'~/.mxnet/datasets/ucf101/rawframes')
         self.train_setting = '/home/hp/.mxnet/datasets/ucf101/ucfTrainTestlist/ucf101_train_split_1_rawframes.txt'
         self.val_setting = '/home/hp/.mxnet/datasets/ucf101/ucfTrainTestlist/ucf101_val_split_1_rawframes.txt'
+        self.train_dir_hmdb51 = os.path.expanduser('/media/hp/8tB/BGSDecom_hmdb51/cv_MOG2/fgs')#'~/.mxnet/datasets/hmdb51/rawframes')#
+        self.train_setting_hmdb51 = '/home/hp/.mxnet/datasets/hmdb51/testTrainMulti_7030_splits/hmdb51_train_split_1_rawframes.txt'
+        self.val_setting_hmdb51 = '/home/hp/.mxnet/datasets/hmdb51/testTrainMulti_7030_splits/hmdb51_val_split_1_rawframes.txt'	
         self.logging_file = 'train.log'
         self.name_pattern='img_%05d.jpg'
-        self.dataset = 'ucf101'
+        self.dataset = 'ucf101' #hmdb51
+        self.num_classes = 101 if self.dataset == 'ucf101' else 51
         self.input_size=224#112#204#112
         self.new_height=256#128#256#128
         self.new_width=340#171#340#171
-        self.input_channel=3 
-        self.num_segments=8
-        self.num_workers = 2
-        self.num_gpus = 1
-        self.per_device_batch_size = 30
-        self.lr = 0.001
+        self.input_channel=3
+        self.num_segments=1
+        self.num_workers = 1
+        self.num_gpus = 2
+        self.per_device_batch_size = 12
+        self.lr = 0.01
         self.lr_decay = 0.1
         self.warmup_lr = 0
         self.warmup_epochs = 0
@@ -75,18 +83,18 @@ class config(AttrDisplay):
         self.wd = 0.0005        
         self.prefetch_ratio = 1.0
         self.use_amp = False
-        self.epochs = 80
-        self.lr_decay_epoch = [30,60]
+        self.epochs = 65
+        self.lr_decay_epoch = [25,50,60]
         self.dtype = 'float32'
-        self.use_pretrained = False
+        self.use_pretrained = True	
         self.partial_bn = False
-        self.clip_grad = 40
+        self.clip_grad = 10
         self.log_interval = 10
         self.lr_mode = 'step'        
         self.resume_epoch = 0
-        self.resume_params = ''#os.path.join('logs/param_rgb_resnet18_v1b_k400_ucf101','0.8620-ucf101-resnet18_v1b_k400_ucf101-082-best.params')
-        self.resume_states = ''#os.path.join('logs/param_rgb_resnet18_v1b_k400_ucf101','0.8620-ucf101-resnet18_v1b_k400_ucf101-082-best.states')
-        self.reshape_type = 'tsn' # c3d tsn tsn_newlength
+        self.resume_params = ''#os.path.join('logs/param_cvMOG2_resnet34_v1b_k400_hmdb51_seg8/','0.4948-hmdb51-resnet34_v1b_k400_ucf101-045-best.params')
+        self.resume_states = ''#os.path.join('logs/param_cvMOG2_resnet34_v1b_k400_ucf101_seg8_1/','0.8097-ucf101-resnet34_v1b_k400_ucf101-049-best.states')
+        self.reshape_type = 'tsn'#'tsn_newlength'#'tsn' # c3d tsn tsn_newlength
       
 
 opt = config()
@@ -107,7 +115,7 @@ ctx = [mx.gpu(i) for i in range(num_gpus)]
 #ctx = [mx.gpu(1)]
 
 # Get the model 
-net = myget(name=opt.model, nclass=opt.num_classes, num_segments=opt.num_segments,input_channel=opt.input_channel,batch_normal=opt.partial_bn,pretrained_base=opt.pretrained_base)
+net = myget(name=opt.model, nclass=opt.num_classes, num_segments=opt.num_segments,input_channel=opt.input_channel,batch_normal=opt.partial_bn,pretrained_base=opt.pretrained_base,pretrained=opt.use_pretrained)
 net.cast(opt.dtype)
 net.collect_params().reset_ctx(ctx)
 #logger.info(net)
@@ -128,14 +136,26 @@ batch_size = per_device_batch_size * num_gpus
 # Set train=True for training data. Here we only use a subset of UCF101 for demonstration purpose.
 # The subset has 101 training samples, one sample per class.
 
-train_dataset = UCF101(setting=opt.train_setting, root=opt.train_dir, train=True,
-                       new_width=opt.new_width, new_height=opt.new_height, new_length=opt.new_length,
+if opt.dataset == 'ucf101':
+    train_dataset = UCF101(setting=opt.train_setting, root=opt.train_dir, train=True,
+                       new_width=opt.new_width, new_height=opt.new_height, new_length=opt.new_length,new_step=opt.new_step,
                        target_width=opt.input_size, target_height=opt.input_size,
                        num_segments=opt.num_segments, transform=transform_train)
-val_dataset = UCF101(setting=opt.val_setting, root=opt.train_dir, train=False,
-                     new_width=opt.new_width, new_height=opt.new_height, new_length=opt.new_length,
+    val_dataset = UCF101(setting=opt.val_setting, root=opt.train_dir, train=False,
+                     new_width=opt.new_width, new_height=opt.new_height, new_length=opt.new_length,new_step=opt.new_step,
                      target_width=opt.input_size, target_height=opt.input_size,
                      num_segments=opt.num_segments, transform=transform_test)
+elif opt.dataset == 'hmdb51':
+    train_dataset = HMDB51(setting=opt.train_setting_hmdb51, root=opt.train_dir_hmdb51, train=True,
+           new_width=opt.new_width, new_height=opt.new_height, new_length=opt.new_length, new_step=opt.new_step,
+           target_width=opt.input_size, target_height=opt.input_size, 
+           num_segments=opt.num_segments, transform=transform_train)
+    val_dataset = HMDB51(setting=opt.val_setting_hmdb51, root=opt.train_dir_hmdb51, train=False,
+           new_width=opt.new_width, new_height=opt.new_height, new_length=opt.new_length, new_step=opt.new_step,
+           target_width=opt.input_size, target_height=opt.input_size, 
+           num_segments=opt.num_segments, transform=transform_test)
+else:
+    logger.info('Dataset %s is not supported yet.' % (opt.dataset))
 
 
 train_data = gluon.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers,
@@ -215,15 +235,15 @@ def test(ctx,val_data):
         data, label = batch_fn(batch, ctx)
 
         val_outputs = []
-        for _, X in enumerate(data):
+        for _, X in enumerate(data):            
             if opt.reshape_type == 'tsn':
                 X = X.reshape((-1,) + X.shape[2:])
             elif opt.reshape_type == 'c3d':
                 X = nd.transpose(data=X,axes=(0,2,1,3,4))
             elif opt.new_length != 1 and opt.reshape_type == 'tsn_newlength':
-                X = X.reshape((-3,-3,-2))
+                X = X.reshape((-3,-3,-2))                
             else:
-                pass
+                pass            
             pred = net(X)
             val_outputs.append(pred)
             
@@ -257,32 +277,57 @@ for epoch in range(opt.resume_epoch, opt.epochs):
     for i, batch in enumerate(train_data):
         # Extract data and label
         data, label = batch_fn(batch, ctx)
-        # AutoGrad
-        with ag.record():
-            output = []
-            for _, X in enumerate(data):
-                if opt.reshape_type == 'tsn':
-                    X = X.reshape((-1,) + X.shape[2:])
-                elif opt.reshape_type == 'c3d' or '3d' in opt.model:
-                    X = nd.transpose(data=X,axes=(0,2,1,3,4))
-                elif opt.new_length != 1 and opt.reshape_type == 'tsn_newlength':
-                    X = X.reshape((-3,-3,-2))
-                else:
-                    pass
+
+        output = []
+        for X,y in zip(data,label):
+            if opt.reshape_type == 'tsn':
+                X = X.reshape((-1,) + X.shape[2:])
+            elif opt.reshape_type == 'c3d' or '3d' in opt.model:
+                X = nd.transpose(data=X,axes=(0,2,1,3,4))
+            elif opt.new_length != 1 and opt.reshape_type == 'tsn_newlength':
+                X = X.reshape((-3,-3,-2))
+            else:
+                pass
+            with ag.record():
                 pred = net(X)
-                output.append(pred)
-            loss = [loss_fn(yhat, y) for yhat, y in zip(output, label)]
-
-        # Backpropagation
-        for l in loss:
-            l.backward()
-
+                loss0 = loss_fn(pred, y.astype(opt.dtype, copy=False))
+            output.append(pred)            
+            loss0.backward()
+        
         # Optimize
         trainer.step(batch_size,ignore_stale_grad=True)        
+            
+        train_loss += loss0.mean().asscalar() / len(label)
+
+        # # AutoGrad
+        # with ag.record():
+        #     output = []
+        #     for _, X in enumerate(data):
+        #         #print('====================================',X.shape)
+        #         if opt.reshape_type == 'tsn':
+        #             X = X.reshape((-1,) + X.shape[2:])
+        #         elif opt.reshape_type == 'c3d' or '3d' in opt.model:
+        #             X = nd.transpose(data=X,axes=(0,2,1,3,4))
+        #         elif opt.new_length != 1 and opt.reshape_type == 'tsn_newlength':
+        #             X = X.reshape((-3,-3,-2))
+        #         else:
+        #             pass
+        #         #print('========= =====================',X.shape)
+        #         pred = net(X)
+        #         output.append(pred)
+        #     loss = [loss_fn(yhat, y) for yhat, y in zip(output, label)]
+
+        # Backpropagation
+        # for l in loss:
+        #     l.backward()
+
+        # Optimize
+        #trainer.step(batch_size,ignore_stale_grad=True)        
 
         # Update metrics
-        train_loss += sum([l.mean().asscalar() for l in loss])
+        #train_loss += sum([l.mean().asscalar() for l in loss])
         train_metric.update(label, output)
+
         if i % opt.log_interval == 0:
             name, acc = train_metric.get()
             logger.info('[Epoch %d] [%d | %d] train=%f loss=%f time: %f' %
@@ -296,6 +341,7 @@ for epoch in range(opt.resume_epoch, opt.epochs):
 
     # Update history and print metrics
     train_history.update([acc,acc_top1_val,acc_top5_val])
+    train_history.plot(save_path=os.path.join(opt.save_dir,'trainlog.jpg'))
     logger.info('[Epoch %d] train=%f loss=%f time: %f' %
         (epoch, acc, train_loss / (i+1), time.time()-tic))
     logger.info('[Epoch %d] val top1 =%f top5=%f val loss=%f,lr=%f' %
