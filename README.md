@@ -58,7 +58,7 @@
 - train_5_%d 
     R(2+1)D作base+反卷积 实现重构和预测
 
--train_6_%d
+- train_6_%d
 	尝试了一下变换自编码器AET 没收敛
 
 - train_7_%d
