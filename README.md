@@ -21,9 +21,9 @@
 	* F_stCN.py  	简单调了一下一篇比较早的[FstCN]
 	* <del>P3D.py 	调P3D 没搞好 [drop]</del>
 	*  mx_c3d.py	gluoncv实现的c3d [C3D]
-	*  mx_c3d_base.py  基于 mx_c3d.py改的 本来是打算用来和其它无监督算法基于C3D对比的
+	*  mx_c3d_base.py  基于 mx_c3d.py改的 本来是打算用来和其它无监督算法基于C3D对比的 [C3D&decoder]
 	*  r2plus1d.py		gluoncv实现的 [R(2+1)D]
-	*  r2plus1d_base.py  	基于 r2plus1d.py改的 用来作为无监督算法的backbone
+	*  r2plus1d_base.py  	基于 r2plus1d.py改的 用来作为无监督算法的backbone [R(2+1)D&decoder]
 	*  ECO.py	调了一下[ECO] 太依赖预训练了
 	*  mx_i3d_resnet.py		用了一下gluoncv的[I3D]
 
@@ -41,7 +41,6 @@
 # 实验
 
 - train_1_%d
-
 	基于双流结构的实验 包括分类、TSN、前背景、I3D
 	
 - train_2_%d
@@ -56,9 +55,12 @@
 - train_4_3& train_4_4
   R(2+1)D作base+反卷积 实现3D自编码
 
-- train_5_%d & train_6_%d
+- train_5_%d 
     R(2+1)D作base+反卷积 实现重构和预测
 
+-train_6_%d
+	尝试了一下变换自编码器AET 没收敛
+
 - train_7_%d
-    R(2+1)D作base+反卷积 +resnet34TSN 对抗训练
+    R(2+1)D作base+反卷积 +resnet34TSN 基于灰度一致性的对抗训练
       
